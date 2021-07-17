@@ -1,0 +1,93 @@
+type OnMoveEventListenerError = variant {
+    AccessDenied;
+    ListenerDoesNotExist;
+    ListenerFatalError;
+};
+
+type Error = variant {
+    InsufficientBalance;
+    AccessDenied;
+    ForbiddenOperation;
+    ListenerError : OnMoveEventListenerError;
+};
+
+type FungibleTokenInfo = record {
+    name : Text;
+    symbol : Text;
+    decimals : nat8;
+};
+
+type InfoResult = variant {
+    Ok : FungibleTokenInfo;
+    Err : Error;
+};
+
+type Account = opt principal;
+
+type Controllers = record {
+    mint_controller : Account;
+    on_move_controller : Account;
+    info_controller : Account;
+};
+
+type SimpleResult = variant {
+    Ok;
+    Err : Error;
+};
+
+type AccountFilter = opt Account;
+
+type OnMoveEventFilter = record {
+    from : AccountFilter;
+    to : AccountFilter;
+};
+
+type RemoteCallEndpoint = record {
+     canister_id: principal;
+     method_name: text;
+};
+
+type OnMoveEventListener = record {
+    filter : OnMoveEventFilter;
+    endpoint : RemoveCallEndpoint;
+};
+
+type FungibleTokenInitPayload = record {
+    info : FungibleTokenInfo;
+    controllers : variant { None; Some : Controllers; };
+    on_move_listeners : vec OnMoveEventListener;
+};
+
+type FungibleTokenTransferEntry = record {
+    to : principal;
+    qty : nat64;
+};
+
+type SubscribeResult = variant {
+    Ok : nat64;
+    Err : Error;
+};
+
+type UnsubscribeResult = variant {
+    Ok : OnMoveListener;
+    Err : Error;
+};
+
+service : {
+    "info" : () -> (FungibleTokenInfo) query;
+    "update_info" : (FungibleTokenInfo) -> (InfoResult);
+
+    "controllers" : () -> (Controllers) query;
+    "update_info_controller" : (Account) -> (SimpleResult);
+    "update_mint_controller" : (Account) -> (SimpleResult);
+    "update_on_move_controller" : (Account) -> (SimpleResult);
+
+    "balance_of" : (principal) -> (nat64) query;
+    "total_supply" : () -> (nat64) query;
+    "mint" : (vec FungibleTokenTransferEntry) -> (vec SimpleResult);
+    "send" : (vec FungibleTokenTransferEntry) -> (vec SimpleResult);
+    "burn" : (nat64) -> (SimpleResult);
+
+    "add_on_move_event_listeners" : (vec OnMoveEventListener) -> (vec SubscribeResult);
+    "delete_on_move_event_listeners" : (vec nat64) -> (vec UnsubscribeResult);
+}

@@ -1,0 +1,16 @@
+[package]
+name = "membership-token"
+version = "0.1.0"
+authors = ["Александр Втюрин <senior.joinu@gmail.com>"]
+edition = "2018"
+
+[lib]
+crate-type = ["cdylib"]
+path = "src/canister.rs"
+
+[dependencies]
+ic-cdk = "0.3.0"
+ic-cdk-macros = "0.3.0"
+serde = "1.0.126"
+ic-event-hub = "0.1.1"
+ic-event-hub-macros = "0.1.0"

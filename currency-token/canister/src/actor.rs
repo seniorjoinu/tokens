@@ -1,5 +1,14 @@
 use std::collections::HashMap;
 
+use antifragile_currency_token_client::events::{
+    ControllerType, ControllerUpdateEvent, InfoUpdateEvent,
+};
+use antifragile_currency_token_client::types::{
+    Account, BurnRequest, BurnResponse, Controllers, CurrencyTokenInitRequest, GetBalanceOfRequest,
+    GetBalanceOfResponse, GetControllersResponse, GetInfoResponse, GetTotalSupplyResponse,
+    TransferRequest, TransferResponse, UpdateControllerRequest, UpdateControllerResponse,
+    UpdateInfoRequest, UpdateInfoResponse,
+};
 use ic_cdk::caller;
 use ic_cdk::export::candid::export_service;
 use ic_cdk_macros::{init, query, update};
@@ -8,15 +17,8 @@ use ic_event_hub::{
     implement_get_event_listeners, implement_remove_event_listeners,
 };
 
-use crate::common::api::{
-    BurnRequest, BurnResponse, ControllerType, ControllerUpdateEvent, CurrencyTokenInitRequest,
-    GetBalanceOfRequest, GetBalanceOfResponse, GetControllersResponse, GetInfoResponse,
-    GetTotalSupplyResponse, InfoUpdateEvent, TransferRequest, TransferResponse,
-    UpdateControllerRequest, UpdateControllerResponse, UpdateInfoRequest, UpdateInfoResponse,
-};
 use crate::common::currency_token::CurrencyToken;
 use crate::common::guards::{event_listeners_guard, info_guard, mint_guard};
-use crate::common::types::{Account, Controllers};
 use crate::common::utils::log;
 
 mod common;

@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 
+use antifragile_currency_token_client::events::{TokenMoveEvent, VotingPowerUpdateEvent};
+use antifragile_currency_token_client::types::{
+    Account, Controllers, CurrencyTokenInfo, Error, Payload,
+};
 use ic_cdk::export::candid::{CandidType, Deserialize, Principal};
-
-use crate::common::api::{TokenMoveEvent, VotingPowerUpdateEvent};
-use crate::common::types::{Account, Controllers, CurrencyTokenInfo, Error, Payload};
 
 #[derive(CandidType, Deserialize)]
 #[cfg_attr(test, derive(Debug))]
@@ -183,10 +184,10 @@ mod tests {
     use std::collections::HashMap;
     use std::time::{SystemTime, UNIX_EPOCH};
 
+    use antifragile_currency_token_client::types::{Account, Controllers, CurrencyTokenInfo};
     use ic_cdk::export::candid::Principal;
 
     use crate::common::currency_token::CurrencyToken;
-    use crate::common::types::{Account, Controllers, CurrencyTokenInfo};
 
     fn magic_blob() -> Vec<u8> {
         vec![1u8, 3u8, 3u8, 7u8]

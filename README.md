@@ -1,7 +1,7 @@
-### Antifragile tokens
+## Antifragile tokens
 
 This repository contains source code for a number of token canister implementations as well as a client code to interact
-with these tokens both on-chain and off-chain.
+with these tokens on-chain.
 
 #### Current implemented tokens:
 
@@ -18,3 +18,4 @@ with these tokens both on-chain and off-chain.
 
 * Both tokens only use linear memory for storage and therefore are not upgrade-ready.
 * Both tokens use untrustworthy getters (without certified variables).
+* Only client code for rust is implemented by now

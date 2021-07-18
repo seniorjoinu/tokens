@@ -1,9 +1,33 @@
 use ic_cdk::export::candid::{CandidType, Deserialize, Principal};
-use ic_event_hub_macros::Event;
 
-use crate::common::types::{Account, Controllers, Error};
+#[derive(CandidType, Deserialize)]
+#[cfg_attr(test, derive(Debug))]
+pub enum Error {
+    AlreadyIsAMember,
+    IsNotAMember,
+    AccessDenied,
+    ForbiddenOperation,
+}
 
-// -------------- METHODS ----------------
+pub type Account = Option<Principal>;
+
+#[derive(Clone, CandidType, Deserialize)]
+#[cfg_attr(test, derive(Debug))]
+pub struct Controllers {
+    pub issue_controller: Account,
+    pub revoke_controller: Account,
+    pub event_listeners_controller: Account,
+}
+
+impl Controllers {
+    pub fn single(controller: Account) -> Controllers {
+        Controllers {
+            issue_controller: controller,
+            revoke_controller: controller,
+            event_listeners_controller: controller,
+        }
+    }
+}
 
 #[derive(CandidType, Deserialize)]
 #[cfg_attr(test, derive(Debug))]
@@ -57,48 +81,4 @@ pub struct UpdateControllerRequest {
 #[cfg_attr(test, derive(Debug))]
 pub struct UpdateControllerResponse {
     pub old_controller: Account,
-}
-
-// ------------- EVENTS ----------------
-
-#[derive(Event, CandidType, Deserialize)]
-#[cfg_attr(test, derive(Debug))]
-pub struct VotingPowerUpdateEvent {
-    #[topic]
-    pub voter: Principal,
-    pub new_voting_power: u64,
-}
-
-#[derive(CandidType, Deserialize)]
-#[cfg_attr(test, derive(PartialEq, Eq, Debug))]
-pub enum MembershipStatus {
-    Issued,
-    Revoked,
-    Accepted,
-    Declined,
-}
-
-#[derive(Event, CandidType, Deserialize)]
-#[cfg_attr(test, derive(Debug))]
-pub struct MembershipStatusUpdateEvent {
-    #[topic]
-    pub member: Principal,
-    #[topic]
-    pub new_status: MembershipStatus,
-}
-
-#[derive(CandidType, Deserialize)]
-#[cfg_attr(test, derive(Debug))]
-pub enum ControllerType {
-    Issue,
-    Revoke,
-    EventListeners,
-}
-
-#[derive(Event, CandidType, Deserialize)]
-#[cfg_attr(test, derive(Debug))]
-pub struct ControllerUpdateEvent {
-    #[topic]
-    pub kind: ControllerType,
-    pub new_controller: Account,
 }

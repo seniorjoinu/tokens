@@ -1,7 +1,6 @@
-use ic_cdk::{caller, print};
+use antifragile_membership_token_client::types::Account;
 use ic_cdk::export::candid::Principal;
-
-use crate::common::types::Account;
+use ic_cdk::{caller, print};
 
 pub fn log(msg: &str) {
     print(format!("[caller: {}]: {}", caller(), msg))

@@ -1,9 +1,10 @@
 use std::collections::HashSet;
 
+use antifragile_membership_token_client::events::{
+    MembershipStatus, MembershipStatusUpdateEvent, VotingPowerUpdateEvent,
+};
+use antifragile_membership_token_client::types::{Account, Controllers, Error};
 use ic_cdk::export::candid::{CandidType, Deserialize, Principal};
-
-use crate::common::api::{MembershipStatus, MembershipStatusUpdateEvent, VotingPowerUpdateEvent};
-use crate::common::types::{Account, Controllers, Error};
 
 #[derive(CandidType, Deserialize)]
 pub struct MembershipToken {
@@ -145,6 +146,9 @@ mod tests {
     use std::time::{SystemTime, UNIX_EPOCH};
 
     use ic_cdk::export::Principal;
+
+    use membership_token_client::events::MembershipStatus;
+    use membership_token_client::types::{Account, Controllers};
 
     use crate::common::api::MembershipStatus;
     use crate::common::membership_token::MembershipToken;

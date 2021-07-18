@@ -1,9 +1,9 @@
 {
   "canisters": {
-    "membership-token": {
-      "build": "./canister-build.sh",
+    "currency-token": {
+      "build": "./build.sh",
       "candid": "./can.did",
-      "wasm": "./target/wasm32-unknown-unknown/debug/membership-token-opt.wasm",
+      "wasm": "./target/wasm32-unknown-unknown/debug/currency-token-opt.wasm",
       "type": "custom"
     }
   },

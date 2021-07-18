@@ -146,9 +146,9 @@ mod tests {
 
     use ic_cdk::export::Principal;
 
-    use crate::api::MembershipStatus;
-    use crate::membership_token::MembershipToken;
-    use crate::types::{Account, Controllers};
+    use crate::common::api::MembershipStatus;
+    use crate::common::membership_token::MembershipToken;
+    use crate::common::types::{Account, Controllers};
 
     fn random_principal() -> Principal {
         Principal::from_slice(

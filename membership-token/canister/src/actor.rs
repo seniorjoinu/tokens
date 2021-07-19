@@ -1,15 +1,17 @@
-use antifragile_membership_token_client::events::{ControllerType, ControllerUpdateEvent};
-use antifragile_membership_token_client::types::{
-    AcceptDeclineMembershipResponse, Account, Controllers, GetControllersResponse,
-    GetTotalMembersResponse, IsMemberRequest, IsMemberResponse, IssueRevokeMembershipsRequest,
-    IssueRevokeMembershipsResponse, UpdateControllerRequest, UpdateControllerResponse,
-};
 use ic_cdk::caller;
 use ic_cdk::export::candid::export_service;
 use ic_cdk_macros::{init, query, update};
 use ic_event_hub::{
     implement_add_event_listeners, implement_become_event_listener, implement_event_emitter,
     implement_get_event_listeners, implement_remove_event_listeners,
+    implement_stop_being_event_listener,
+};
+
+use antifragile_membership_token_client::events::{ControllerType, ControllerUpdateEvent};
+use antifragile_membership_token_client::types::{
+    AcceptDeclineMembershipResponse, Account, Controllers, GetControllersResponse,
+    GetTotalMembersResponse, IsMemberRequest, IsMemberResponse, IssueRevokeMembershipsRequest,
+    IssueRevokeMembershipsResponse, UpdateControllerRequest, UpdateControllerResponse,
 };
 
 use crate::common::guards::{event_listeners_guard, issue_guard, revoke_guard};
@@ -176,6 +178,7 @@ implement_event_emitter!();
 implement_add_event_listeners!(guard = "event_listeners_guard");
 implement_remove_event_listeners!(guard = "event_listeners_guard");
 implement_become_event_listener!();
+implement_stop_being_event_listener!();
 implement_get_event_listeners!();
 
 // ------------------ STATE ----------------------

@@ -1,5 +1,14 @@
 use std::collections::HashMap;
 
+use ic_cdk::caller;
+use ic_cdk::export::candid::export_service;
+use ic_cdk_macros::{init, query, update};
+use ic_event_hub::{
+    implement_add_event_listeners, implement_become_event_listener, implement_event_emitter,
+    implement_get_event_listeners, implement_remove_event_listeners,
+    implement_stop_being_event_listener,
+};
+
 use antifragile_currency_token_client::events::{
     ControllerType, ControllerUpdateEvent, InfoUpdateEvent,
 };
@@ -8,13 +17,6 @@ use antifragile_currency_token_client::types::{
     GetBalanceOfResponse, GetControllersResponse, GetInfoResponse, GetTotalSupplyResponse,
     TransferRequest, TransferResponse, UpdateControllerRequest, UpdateControllerResponse,
     UpdateInfoRequest, UpdateInfoResponse,
-};
-use ic_cdk::caller;
-use ic_cdk::export::candid::export_service;
-use ic_cdk_macros::{init, query, update};
-use ic_event_hub::{
-    implement_add_event_listeners, implement_become_event_listener, implement_event_emitter,
-    implement_get_event_listeners, implement_remove_event_listeners,
 };
 
 use crate::common::currency_token::CurrencyToken;
@@ -199,6 +201,7 @@ implement_event_emitter!();
 implement_add_event_listeners!(guard = "event_listeners_guard");
 implement_remove_event_listeners!(guard = "event_listeners_guard");
 implement_become_event_listener!();
+implement_stop_being_event_listener!();
 implement_get_event_listeners!();
 
 // ------------------ STATE ----------------------

@@ -12,5 +12,5 @@ path = "src/actor.rs"
 ic-cdk = "0.3.0"
 ic-cdk-macros = "0.3.0"
 serde = "1.0.126"
-ic-event-hub = "0.1.1"
-antifragile-currency-token-client = "0.1.3"
+ic-event-hub = "0.1.2"
+antifragile-currency-token-client = { path = "../clients/rust" }

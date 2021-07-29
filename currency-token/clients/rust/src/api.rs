@@ -5,7 +5,7 @@ use ic_cdk::export::candid::Principal;
 use crate::types::{
     BurnRequest, BurnResponse, GetBalanceOfRequest, GetBalanceOfResponse, GetControllersResponse,
     GetInfoResponse, GetTotalSupplyResponse, TransferRequest, TransferResponse,
-    UpdateControllerRequest, UpdateControllerResponse, UpdateInfoRequest, UpdateInfoResponse,
+    UpdateControllersRequest, UpdateControllersResponse, UpdateInfoRequest, UpdateInfoResponse,
 };
 
 pub struct CurrencyTokenClient {
@@ -57,27 +57,15 @@ impl CurrencyTokenClient {
 
     pub async fn update_info_controller(
         &self,
-        request: UpdateControllerRequest,
-    ) -> CallResult<(UpdateControllerResponse,)> {
+        request: UpdateControllersRequest,
+    ) -> CallResult<(UpdateControllersResponse,)> {
         call(self.canister_id, "update_info_controller", (request,)).await
     }
 
     pub async fn update_mint_controller(
         &self,
-        request: UpdateControllerRequest,
-    ) -> CallResult<(UpdateControllerResponse,)> {
+        request: UpdateControllersRequest,
+    ) -> CallResult<(UpdateControllersResponse,)> {
         call(self.canister_id, "update_mint_controller", (request,)).await
-    }
-
-    pub async fn update_event_listeners_controller(
-        &self,
-        request: UpdateControllerRequest,
-    ) -> CallResult<(UpdateControllerResponse,)> {
-        call(
-            self.canister_id,
-            "update_event_listeners_controller",
-            (request,),
-        )
-        .await
     }
 }

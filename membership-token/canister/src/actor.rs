@@ -1,22 +1,21 @@
 use ic_cdk::caller;
 use ic_cdk::export::candid::export_service;
 use ic_cdk_macros::{init, query, update};
-use ic_event_hub::{
-    implement_add_event_listeners, implement_become_event_listener, implement_event_emitter,
-    implement_get_event_listeners, implement_remove_event_listeners,
-    implement_stop_being_event_listener,
+use ic_event_hub_macros::{
+    implement_add_event_listeners, implement_event_emitter, implement_get_event_listeners,
+    implement_remove_event_listeners,
 };
+use union_utils::log;
 
-use antifragile_membership_token_client::events::{ControllerType, ControllerUpdateEvent};
+use antifragile_membership_token_client::events::{ControllerType, ControllersUpdateEvent};
 use antifragile_membership_token_client::types::{
-    AcceptDeclineMembershipResponse, Account, Controllers, GetControllersResponse,
+    AcceptDeclineMembershipResponse, ControllerList, GetControllersResponse,
     GetTotalMembersResponse, IsMemberRequest, IsMemberResponse, IssueRevokeMembershipsRequest,
     IssueRevokeMembershipsResponse, UpdateControllerRequest, UpdateControllerResponse,
 };
 
 use crate::common::guards::{event_listeners_guard, issue_guard, revoke_guard};
 use crate::common::membership_token::MembershipToken;
-use crate::common::utils::log;
 
 mod common;
 
@@ -26,7 +25,7 @@ mod common;
 fn init() {
     log("membership_token.init()");
 
-    let controllers = Controllers::single(Account::Some(caller()));
+    let controllers = ControllerList::single(Some(caller()));
     let token = MembershipToken::new(controllers);
 
     unsafe {
@@ -59,9 +58,10 @@ fn revoke_memberships(request: IssueRevokeMembershipsRequest) -> IssueRevokeMemb
         .principals
         .into_iter()
         .map(|from| {
-            state.revoke_membership(from).map(|(ev1, ev2)| {
+            state.revoke_membership(from).map(|(ev1, ev2, ev3)| {
                 emit(ev1);
                 emit(ev2);
+                emit(ev3);
             })
         })
         .collect();
@@ -73,10 +73,13 @@ fn revoke_memberships(request: IssueRevokeMembershipsRequest) -> IssueRevokeMemb
 fn accept_membership() -> AcceptDeclineMembershipResponse {
     log("membership_token.accept_membership()");
 
-    let result = get_state().accept_membership(caller()).map(|(ev1, ev2)| {
-        emit(ev1);
-        emit(ev2);
-    });
+    let result = get_state()
+        .accept_membership(caller())
+        .map(|(ev1, ev2, ev3)| {
+            emit(ev1);
+            emit(ev2);
+            emit(ev3);
+        });
 
     AcceptDeclineMembershipResponse { result }
 }
@@ -125,42 +128,49 @@ fn get_total_members() -> GetTotalMembersResponse {
 fn update_issue_controller(request: UpdateControllerRequest) -> UpdateControllerResponse {
     log("membership_token.update_issue_controller()");
 
-    let old_controller = get_state().update_issue_controller(request.new_controller);
+    let old_controller = get_state().update_issue_controllers(request.new_controllers.clone());
 
-    emit(ControllerUpdateEvent {
+    emit(ControllersUpdateEvent {
         kind: ControllerType::Issue,
-        new_controller: request.new_controller,
+        new_controllers: request.new_controllers,
     });
 
-    UpdateControllerResponse { old_controller }
+    UpdateControllerResponse {
+        old_controllers: old_controller,
+    }
 }
 
 #[update(guard = "revoke_guard")]
 fn update_revoke_controller(request: UpdateControllerRequest) -> UpdateControllerResponse {
     log("membership_token.update_revoke_controller()");
 
-    let old_controller = get_state().update_revoke_controller(request.new_controller);
+    let old_controller = get_state().update_revoke_controllers(request.new_controllers.clone());
 
-    emit(ControllerUpdateEvent {
+    emit(ControllersUpdateEvent {
         kind: ControllerType::Revoke,
-        new_controller: request.new_controller,
+        new_controllers: request.new_controllers,
     });
 
-    UpdateControllerResponse { old_controller }
+    UpdateControllerResponse {
+        old_controllers: old_controller,
+    }
 }
 
 #[update(guard = "event_listeners_guard")]
 fn update_event_listeners_controller(request: UpdateControllerRequest) -> UpdateControllerResponse {
     log("membership_token.update_event_listeners_controller()");
 
-    let old_controller = get_state().update_event_listeners_controller(request.new_controller);
+    let old_controller =
+        get_state().update_event_listeners_controllers(request.new_controllers.clone());
 
-    emit(ControllerUpdateEvent {
+    emit(ControllersUpdateEvent {
         kind: ControllerType::EventListeners,
-        new_controller: request.new_controller,
+        new_controllers: request.new_controllers,
     });
 
-    UpdateControllerResponse { old_controller }
+    UpdateControllerResponse {
+        old_controllers: old_controller,
+    }
 }
 
 #[query]
@@ -177,8 +187,6 @@ fn get_controllers() -> GetControllersResponse {
 implement_event_emitter!();
 implement_add_event_listeners!(guard = "event_listeners_guard");
 implement_remove_event_listeners!(guard = "event_listeners_guard");
-implement_become_event_listener!();
-implement_stop_being_event_listener!();
 implement_get_event_listeners!();
 
 // ------------------ STATE ----------------------

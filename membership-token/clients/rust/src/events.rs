@@ -1,18 +1,9 @@
 use ic_cdk::export::candid::{CandidType, Deserialize, Principal};
 use ic_event_hub_macros::Event;
 
-use crate::types::Account;
+use crate::types::Controllers;
 
-#[derive(Event, CandidType, Deserialize)]
-#[cfg_attr(test, derive(Debug))]
-pub struct VotingPowerUpdateEvent {
-    #[topic]
-    pub voter: Principal,
-    pub new_voting_power: u64,
-}
-
-#[derive(CandidType, Deserialize)]
-#[cfg_attr(test, derive(PartialEq, Eq, Debug))]
+#[derive(Debug, CandidType, Deserialize)]
 pub enum MembershipStatus {
     Issued,
     Revoked,
@@ -21,7 +12,6 @@ pub enum MembershipStatus {
 }
 
 #[derive(Event, CandidType, Deserialize)]
-#[cfg_attr(test, derive(Debug))]
 pub struct MembershipStatusUpdateEvent {
     #[topic]
     pub member: Principal,
@@ -29,8 +19,7 @@ pub struct MembershipStatusUpdateEvent {
     pub new_status: MembershipStatus,
 }
 
-#[derive(CandidType, Deserialize)]
-#[cfg_attr(test, derive(Debug))]
+#[derive(Debug, CandidType, Deserialize)]
 pub enum ControllerType {
     Issue,
     Revoke,
@@ -38,9 +27,8 @@ pub enum ControllerType {
 }
 
 #[derive(Event, CandidType, Deserialize)]
-#[cfg_attr(test, derive(Debug))]
-pub struct ControllerUpdateEvent {
+pub struct ControllersUpdateEvent {
     #[topic]
     pub kind: ControllerType,
-    pub new_controller: Account,
+    pub new_controllers: Controllers,
 }

@@ -3,25 +3,24 @@ use std::collections::HashMap;
 use ic_cdk::caller;
 use ic_cdk::export::candid::export_service;
 use ic_cdk_macros::{init, query, update};
-use ic_event_hub::{
-    implement_add_event_listeners, implement_become_event_listener, implement_event_emitter,
-    implement_get_event_listeners, implement_remove_event_listeners,
+use ic_event_hub_macros::{
+    implement_become_event_listener, implement_event_emitter, implement_get_event_listeners,
     implement_stop_being_event_listener,
 };
+use union_utils::log;
 
 use antifragile_currency_token_client::events::{
-    ControllerType, ControllerUpdateEvent, InfoUpdateEvent,
+    ControllerType, ControllersUpdateEvent, InfoUpdateEvent,
 };
 use antifragile_currency_token_client::types::{
-    Account, BurnRequest, BurnResponse, Controllers, CurrencyTokenInitRequest, GetBalanceOfRequest,
+    BurnRequest, BurnResponse, ControllerList, CurrencyTokenInitRequest, GetBalanceOfRequest,
     GetBalanceOfResponse, GetControllersResponse, GetInfoResponse, GetTotalSupplyResponse,
-    TransferRequest, TransferResponse, UpdateControllerRequest, UpdateControllerResponse,
+    TransferRequest, TransferResponse, UpdateControllersRequest, UpdateControllersResponse,
     UpdateInfoRequest, UpdateInfoResponse,
 };
 
 use crate::common::currency_token::CurrencyToken;
-use crate::common::guards::{event_listeners_guard, info_guard, mint_guard};
-use crate::common::utils::log;
+use crate::common::guards::{info_guard, mint_guard};
 
 mod common;
 
@@ -31,7 +30,7 @@ mod common;
 fn init(request: CurrencyTokenInitRequest) {
     log("currency_token.init()");
 
-    let controllers = Controllers::single(Account::Some(caller()));
+    let controllers = ControllerList::single(Some(caller()));
 
     let token = CurrencyToken {
         balances: HashMap::new(),
@@ -57,9 +56,10 @@ fn mint(request: TransferRequest) -> TransferResponse {
         .map(|entry| {
             state
                 .mint(entry.to, entry.qty, entry.payload)
-                .map(|(ev1, ev2)| {
+                .map(|(ev1, ev2, ev3)| {
                     emit(ev1);
                     emit(ev2);
+                    emit(ev3);
                 })
         })
         .collect();
@@ -96,9 +96,10 @@ fn burn(request: BurnRequest) -> BurnResponse {
 
     get_state()
         .burn(caller(), request.quantity, request.payload)
-        .map(|(ev1, ev2)| {
+        .map(|(ev1, ev2, ev3)| {
             emit(ev1);
             emit(ev2);
+            emit(ev3);
         })
 }
 
@@ -154,52 +155,40 @@ fn get_controllers() -> GetControllersResponse {
 }
 
 #[update(guard = "info_guard")]
-fn update_info_controller(request: UpdateControllerRequest) -> UpdateControllerResponse {
+fn update_info_controller(request: UpdateControllersRequest) -> UpdateControllersResponse {
     log("currency_token.update_info_controller()");
 
-    let old_controller = get_state().update_info_controller(request.new_controller);
+    let old_controller = get_state().update_info_controllers(request.new_controllers.clone());
 
-    emit(ControllerUpdateEvent {
+    emit(ControllersUpdateEvent {
         kind: ControllerType::Info,
-        new_controller: request.new_controller,
+        new_controllers: request.new_controllers,
     });
 
-    UpdateControllerResponse { old_controller }
+    UpdateControllersResponse {
+        old_controllers: old_controller,
+    }
 }
 
 #[update(guard = "mint_guard")]
-fn update_mint_controller(request: UpdateControllerRequest) -> UpdateControllerResponse {
+fn update_mint_controller(request: UpdateControllersRequest) -> UpdateControllersResponse {
     log("currency_token.update_mint_controller()");
 
-    let old_controller = get_state().update_mint_controller(request.new_controller);
+    let old_controller = get_state().update_mint_controllers(request.new_controllers.clone());
 
-    emit(ControllerUpdateEvent {
+    emit(ControllersUpdateEvent {
         kind: ControllerType::Mint,
-        new_controller: request.new_controller,
+        new_controllers: request.new_controllers,
     });
 
-    UpdateControllerResponse { old_controller }
-}
-
-#[update(guard = "event_listeners_guard")]
-fn update_event_listeners_controller(request: UpdateControllerRequest) -> UpdateControllerResponse {
-    log("currency_token.update_event_listeners_controller()");
-
-    let old_controller = get_state().update_event_listeners_controller(request.new_controller);
-
-    emit(ControllerUpdateEvent {
-        kind: ControllerType::EventListeners,
-        new_controller: request.new_controller,
-    });
-
-    UpdateControllerResponse { old_controller }
+    UpdateControllersResponse {
+        old_controllers: old_controller,
+    }
 }
 
 // ------------------ EVENT HUB --------------------
 
 implement_event_emitter!();
-implement_add_event_listeners!(guard = "event_listeners_guard");
-implement_remove_event_listeners!(guard = "event_listeners_guard");
 implement_become_event_listener!();
 implement_stop_being_event_listener!();
 implement_get_event_listeners!();

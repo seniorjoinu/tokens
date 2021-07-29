@@ -9,22 +9,28 @@ pub enum Error {
     ForbiddenOperation,
 }
 
-pub type Account = Option<Principal>;
+pub type Controllers = Vec<Principal>;
 
 #[derive(Clone, CandidType, Deserialize)]
 #[cfg_attr(test, derive(Debug))]
-pub struct Controllers {
-    pub issue_controller: Account,
-    pub revoke_controller: Account,
-    pub event_listeners_controller: Account,
+pub struct ControllerList {
+    pub issue_controllers: Controllers,
+    pub revoke_controllers: Controllers,
+    pub event_listeners_controllers: Controllers,
 }
 
-impl Controllers {
-    pub fn single(controller: Account) -> Controllers {
-        Controllers {
-            issue_controller: controller,
-            revoke_controller: controller,
-            event_listeners_controller: controller,
+impl ControllerList {
+    pub fn single(controller: Option<Principal>) -> ControllerList {
+        let controllers = if controller.is_some() {
+            vec![controller.unwrap()]
+        } else {
+            Vec::new()
+        };
+
+        ControllerList {
+            issue_controllers: controllers.clone(),
+            revoke_controllers: controllers.clone(),
+            event_listeners_controllers: controllers,
         }
     }
 }
@@ -68,17 +74,17 @@ pub struct AcceptDeclineMembershipResponse {
 #[derive(CandidType, Deserialize)]
 #[cfg_attr(test, derive(Debug))]
 pub struct GetControllersResponse {
-    pub controllers: Controllers,
+    pub controllers: ControllerList,
 }
 
 #[derive(CandidType, Deserialize)]
 #[cfg_attr(test, derive(Debug))]
 pub struct UpdateControllerRequest {
-    pub new_controller: Account,
+    pub new_controllers: Controllers,
 }
 
 #[derive(CandidType, Deserialize)]
 #[cfg_attr(test, derive(Debug))]
 pub struct UpdateControllerResponse {
-    pub old_controller: Account,
+    pub old_controllers: Controllers,
 }

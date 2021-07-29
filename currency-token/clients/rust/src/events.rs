@@ -1,29 +1,19 @@
 use ic_cdk::export::candid::{CandidType, Deserialize, Principal};
 use ic_event_hub_macros::Event;
 
-use crate::types::{Account, CurrencyTokenInfo, Payload};
+use crate::types::{CurrencyTokenInfo, Payload, Controllers};
 
 #[derive(Event, CandidType, Deserialize)]
-#[cfg_attr(test, derive(Debug))]
 pub struct TokenMoveEvent {
     #[topic]
-    pub from: Account,
+    pub from: Option<Principal>,
     #[topic]
-    pub to: Account,
+    pub to: Option<Principal>,
     pub qty: u64,
     pub payload: Payload,
 }
 
-#[derive(Event, CandidType, Deserialize)]
-#[cfg_attr(test, derive(Debug))]
-pub struct VotingPowerUpdateEvent {
-    #[topic]
-    pub voter: Principal,
-    pub new_voting_power: u64,
-}
-
-#[derive(CandidType, Deserialize)]
-#[cfg_attr(test, derive(Debug))]
+#[derive(Debug, CandidType, Deserialize)]
 pub enum ControllerType {
     Mint,
     Info,
@@ -31,15 +21,13 @@ pub enum ControllerType {
 }
 
 #[derive(Event, CandidType, Deserialize)]
-#[cfg_attr(test, derive(Debug))]
-pub struct ControllerUpdateEvent {
+pub struct ControllersUpdateEvent {
     #[topic]
     pub kind: ControllerType,
-    pub new_controller: Account,
+    pub new_controllers: Controllers,
 }
 
 #[derive(Event, CandidType, Deserialize)]
-#[cfg_attr(test, derive(Debug))]
 pub struct InfoUpdateEvent {
     pub new_info: CurrencyTokenInfo,
 }

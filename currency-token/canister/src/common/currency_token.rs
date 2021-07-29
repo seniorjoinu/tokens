@@ -1,18 +1,19 @@
 use std::collections::HashMap;
 
-use antifragile_currency_token_client::events::{TokenMoveEvent, VotingPowerUpdateEvent};
-use antifragile_currency_token_client::types::{
-    Account, Controllers, CurrencyTokenInfo, Error, Payload,
-};
 use ic_cdk::export::candid::{CandidType, Deserialize, Principal};
+use union_utils::{TotalVotingPowerUpdateEvent, VotingPowerUpdateEvent};
+
+use antifragile_currency_token_client::events::TokenMoveEvent;
+use antifragile_currency_token_client::types::{
+    ControllerList, Controllers, CurrencyTokenInfo, Error, Payload,
+};
 
 #[derive(CandidType, Deserialize)]
-#[cfg_attr(test, derive(Debug))]
 pub struct CurrencyToken {
     pub balances: HashMap<Principal, u64>,
     pub total_supply: u64,
     pub info: CurrencyTokenInfo,
-    pub controllers: Controllers,
+    pub controllers: ControllerList,
 }
 
 impl CurrencyToken {
@@ -21,7 +22,14 @@ impl CurrencyToken {
         to: Principal,
         qty: u64,
         payload: Payload,
-    ) -> Result<(TokenMoveEvent, VotingPowerUpdateEvent), Error> {
+    ) -> Result<
+        (
+            TokenMoveEvent,
+            TotalVotingPowerUpdateEvent,
+            VotingPowerUpdateEvent,
+        ),
+        Error,
+    > {
         if qty == 0 {
             return Err(Error::ZeroQuantity);
         }
@@ -34,10 +42,13 @@ impl CurrencyToken {
 
         Ok((
             TokenMoveEvent {
-                from: Account::None,
-                to: Account::Some(to),
+                from: None,
+                to: Some(to),
                 qty,
                 payload,
+            },
+            TotalVotingPowerUpdateEvent {
+                new_total_voting_power: self.total_supply,
             },
             VotingPowerUpdateEvent {
                 voter: to,
@@ -84,8 +95,8 @@ impl CurrencyToken {
 
         Ok((
             TokenMoveEvent {
-                from: Account::Some(from),
-                to: Account::Some(to),
+                from: Some(from),
+                to: Some(to),
                 qty,
                 payload,
             },
@@ -105,7 +116,14 @@ impl CurrencyToken {
         from: Principal,
         qty: u64,
         payload: Payload,
-    ) -> Result<(TokenMoveEvent, VotingPowerUpdateEvent), Error> {
+    ) -> Result<
+        (
+            TokenMoveEvent,
+            TotalVotingPowerUpdateEvent,
+            VotingPowerUpdateEvent,
+        ),
+        Error,
+    > {
         if qty == 0 {
             return Err(Error::ZeroQuantity);
         }
@@ -128,10 +146,13 @@ impl CurrencyToken {
 
         Ok((
             TokenMoveEvent {
-                from: Account::Some(from),
-                to: Account::None,
+                from: Some(from),
+                to: None,
                 qty,
                 payload,
+            },
+            TotalVotingPowerUpdateEvent {
+                new_total_voting_power: self.total_supply,
             },
             VotingPowerUpdateEvent {
                 voter: from,
@@ -147,28 +168,18 @@ impl CurrencyToken {
         old_info
     }
 
-    pub fn update_mint_controller(&mut self, new_mint_controller: Account) -> Account {
-        let old_controller = self.controllers.mint_controller;
-        self.controllers.mint_controller = new_mint_controller;
+    pub fn update_mint_controllers(&mut self, new_mint_controllers: Controllers) -> Controllers {
+        let old_controllers = self.controllers.mint_controllers.clone();
+        self.controllers.mint_controllers = new_mint_controllers;
 
-        old_controller
+        old_controllers
     }
 
-    pub fn update_event_listeners_controller(
-        &mut self,
-        new_event_listeners_controller: Account,
-    ) -> Account {
-        let old_controller = self.controllers.event_listeners_controller;
-        self.controllers.event_listeners_controller = new_event_listeners_controller;
+    pub fn update_info_controllers(&mut self, new_info_controllers: Controllers) -> Controllers {
+        let old_controllers = self.controllers.info_controllers.clone();
+        self.controllers.info_controllers = new_info_controllers;
 
-        old_controller
-    }
-
-    pub fn update_info_controller(&mut self, new_info_controller: Account) -> Account {
-        let old_controller = self.controllers.info_controller;
-        self.controllers.info_controller = new_info_controller;
-
-        old_controller
+        old_controllers
     }
 
     pub fn balance_of(&self, account_owner: &Principal) -> u64 {
@@ -182,10 +193,11 @@ impl CurrencyToken {
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
-    use std::time::{SystemTime, UNIX_EPOCH};
 
-    use antifragile_currency_token_client::types::{Account, Controllers, CurrencyTokenInfo};
     use ic_cdk::export::candid::Principal;
+    use union_utils::random_principal_test;
+
+    use antifragile_currency_token_client::types::{ControllerList, CurrencyTokenInfo};
 
     use crate::common::currency_token::CurrencyToken;
 
@@ -193,18 +205,8 @@ mod tests {
         vec![1u8, 3u8, 3u8, 7u8]
     }
 
-    fn random_principal() -> Principal {
-        Principal::from_slice(
-            &SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-                .to_be_bytes(),
-        )
-    }
-
-    fn create_currency_token() -> (CurrencyToken, Account) {
-        let controller = Some(random_principal());
+    fn create_currency_token() -> (CurrencyToken, Principal) {
+        let controller = random_principal_test();
         let token = CurrencyToken {
             balances: HashMap::new(),
             total_supply: 0,
@@ -213,7 +215,7 @@ mod tests {
                 symbol: String::from("TST"),
                 decimals: 8,
             },
-            controllers: Controllers::single(controller),
+            controllers: ControllerList::single(Some(controller)),
         };
 
         (token, controller)
@@ -225,9 +227,8 @@ mod tests {
 
         assert!(token.balances.is_empty());
         assert_eq!(token.total_supply, 0);
-        assert_eq!(token.controllers.event_listeners_controller, controller);
-        assert_eq!(token.controllers.info_controller, controller);
-        assert_eq!(token.controllers.mint_controller, controller);
+        assert!(token.controllers.info_controllers.contains(&controller));
+        assert!(token.controllers.mint_controllers.contains(&controller));
         assert_eq!(token.info.name, String::from("test"));
         assert_eq!(token.info.symbol, String::from("TST"));
         assert_eq!(token.info.decimals, 8);
@@ -236,9 +237,9 @@ mod tests {
     #[test]
     fn minting_works_right() {
         let (mut token, controller) = create_currency_token();
-        let user_1 = random_principal();
+        let user_1 = random_principal_test();
 
-        let (ev1, ev2) = token.mint(user_1, 100, None).expect("mint 1 should work");
+        let (ev1, ev2, ev3) = token.mint(user_1, 100, None).ok().unwrap();
 
         assert_eq!(token.total_supply, 100);
         assert_eq!(token.balances.len(), 1);
@@ -249,38 +250,40 @@ mod tests {
         assert_eq!(ev1.qty, 100);
         assert_eq!(ev1.payload, None);
 
-        assert_eq!(ev2.voter, user_1);
-        assert_eq!(ev2.new_voting_power, 100);
+        assert_eq!(ev2.new_total_voting_power, 100);
 
-        let (ev1, ev2) = token
-            .mint(controller.unwrap(), 200, Some(magic_blob()))
-            .expect("mint 2 should work");
+        assert_eq!(ev3.voter, user_1);
+        assert_eq!(ev3.new_voting_power, 100);
+
+        let (ev1, ev2, ev3) = token
+            .mint(controller, 200, Some(magic_blob()))
+            .ok()
+            .unwrap();
 
         assert_eq!(token.total_supply, 300);
         assert_eq!(token.balances.len(), 2);
         assert_eq!(token.balances.get(&user_1).unwrap().clone(), 100);
-        assert_eq!(
-            token.balances.get(&controller.unwrap()).unwrap().clone(),
-            200
-        );
+        assert_eq!(token.balances.get(&controller).unwrap().clone(), 200);
 
         assert_eq!(ev1.from, None);
         assert_eq!(ev1.qty, 200);
-        assert_eq!(ev1.to, controller);
+        assert_eq!(ev1.to, Some(controller));
         assert_eq!(ev1.payload, Some(magic_blob()));
 
-        assert_eq!(ev2.voter, controller.unwrap());
-        assert_eq!(ev2.new_voting_power, 200);
+        assert_eq!(ev2.new_total_voting_power, 300);
+
+        assert_eq!(ev3.voter, controller);
+        assert_eq!(ev3.new_voting_power, 200);
     }
 
     #[test]
     fn burning_works_fine() {
         let (mut token, controller) = create_currency_token();
-        let user_1 = random_principal();
+        let user_1 = random_principal_test();
 
-        token.mint(user_1, 100, None).expect("mint 1 should work");
+        token.mint(user_1, 100, None).ok().unwrap();
 
-        let (ev1, ev2) = token.burn(user_1, 90, None).expect("burn 1 should work");
+        let (ev1, ev2, ev3) = token.burn(user_1, 90, None).ok().unwrap();
 
         assert_eq!(token.balances.len(), 1);
         assert_eq!(token.balances.get(&user_1).unwrap().clone(), 10);
@@ -291,14 +294,14 @@ mod tests {
         assert_eq!(ev1.qty, 90);
         assert_eq!(ev1.payload, None);
 
-        assert_eq!(ev2.voter, user_1);
-        assert_eq!(ev2.new_voting_power, 10);
+        assert_eq!(ev2.new_total_voting_power, 10);
 
-        token
-            .burn(user_1, 20, None)
-            .expect_err("overburn shouldn't work");
+        assert_eq!(ev3.voter, user_1);
+        assert_eq!(ev3.new_voting_power, 10);
 
-        let (ev1, ev2) = token.burn(user_1, 10, None).expect("burn 2 should work");
+        token.burn(user_1, 20, None).err().unwrap();
+
+        let (ev1, ev2, ev3) = token.burn(user_1, 10, None).ok().unwrap();
 
         assert!(token.balances.is_empty());
         assert!(token.balances.get(&user_1).is_none());
@@ -309,25 +312,23 @@ mod tests {
         assert_eq!(ev1.qty, 10);
         assert_eq!(ev1.payload, None);
 
-        assert_eq!(ev2.voter, user_1);
-        assert_eq!(ev2.new_voting_power, 0);
+        assert_eq!(ev2.new_total_voting_power, 0);
 
-        token
-            .burn(user_1, 20, None)
-            .expect_err("overburn shouldn't work");
+        assert_eq!(ev3.voter, user_1);
+        assert_eq!(ev3.new_voting_power, 0);
+
+        token.burn(user_1, 20, None).err().unwrap();
     }
 
     #[test]
     fn transfer_works_fine() {
         let (mut token, controller) = create_currency_token();
-        let user_1 = random_principal();
-        let user_2 = random_principal();
+        let user_1 = random_principal_test();
+        let user_2 = random_principal_test();
 
-        token.mint(user_1, 1000, None).expect("mint 1 should work");
+        token.mint(user_1, 1000, None).ok().unwrap();
 
-        let (ev1, ev2, ev3) = token
-            .transfer(user_1, user_2, 100, None)
-            .expect("transfer 1 should work");
+        let (ev1, ev2, ev3) = token.transfer(user_1, user_2, 100, None).ok().unwrap();
 
         assert_eq!(token.balances.len(), 2);
         assert_eq!(token.balances.get(&user_1).unwrap().clone(), 900);
@@ -345,17 +346,11 @@ mod tests {
         assert_eq!(ev3.voter, user_2);
         assert_eq!(ev3.new_voting_power, 100);
 
-        token
-            .transfer(user_1, user_2, 1000, None)
-            .expect_err("overtrasnfer 1 should fail");
+        token.transfer(user_1, user_2, 1000, None).err().unwrap();
 
-        token
-            .transfer(controller.unwrap(), user_2, 100, None)
-            .expect_err("overtransfer 2 should fail");
+        token.transfer(controller, user_2, 100, None).err().unwrap();
 
-        let (ev1, ev2, ev3) = token
-            .transfer(user_2, user_1, 100, None)
-            .expect("transfer 2 should work");
+        let (ev1, ev2, ev3) = token.transfer(user_2, user_1, 100, None).ok().unwrap();
 
         assert_eq!(token.balances.len(), 1);
         assert_eq!(token.balances.get(&user_1).unwrap().clone(), 1000);
@@ -373,13 +368,9 @@ mod tests {
         assert_eq!(ev3.voter, user_1);
         assert_eq!(ev3.new_voting_power, 1000);
 
-        token
-            .transfer(user_2, user_1, 1, None)
-            .expect_err("overtransfer 3 should fail");
+        token.transfer(user_2, user_1, 1, None).err().unwrap();
 
-        token
-            .transfer(user_2, user_1, 0, None)
-            .expect_err("transfer of zero tokens should fail");
+        token.transfer(user_2, user_1, 0, None).err().unwrap();
     }
 
     #[test]

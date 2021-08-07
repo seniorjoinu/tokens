@@ -1,11 +1,11 @@
-use std::collections::HashMap;
+use std::collections::hash_map::Entry;
+use std::collections::{HashMap, HashSet};
 
 use ic_cdk::export::candid::{CandidType, Deserialize, Principal};
-use union_utils::{TotalVotingPowerUpdateEvent, VotingPowerUpdateEvent};
+use ic_cron::types::TaskId;
 
-use antifragile_currency_token_client::events::TokenMoveEvent;
 use antifragile_currency_token_client::types::{
-    ControllerList, Controllers, CurrencyTokenInfo, Error, Payload,
+    ControllerList, Controllers, CurrencyTokenInfo, Error,
 };
 
 #[derive(CandidType, Deserialize)]
@@ -14,22 +14,12 @@ pub struct CurrencyToken {
     pub total_supply: u64,
     pub info: CurrencyTokenInfo,
     pub controllers: ControllerList,
+    pub recurrent_mint_tasks: HashSet<TaskId>,
+    pub recurrent_transfer_tasks: HashMap<Principal, HashSet<TaskId>>,
 }
 
 impl CurrencyToken {
-    pub fn mint(
-        &mut self,
-        to: Principal,
-        qty: u64,
-        payload: Payload,
-    ) -> Result<
-        (
-            TokenMoveEvent,
-            TotalVotingPowerUpdateEvent,
-            VotingPowerUpdateEvent,
-        ),
-        Error,
-    > {
+    pub fn mint(&mut self, to: Principal, qty: u64) -> Result<(), Error> {
         if qty == 0 {
             return Err(Error::ZeroQuantity);
         }
@@ -40,37 +30,10 @@ impl CurrencyToken {
         self.total_supply += qty;
         self.balances.insert(to, new_balance);
 
-        Ok((
-            TokenMoveEvent {
-                from: None,
-                to: Some(to),
-                qty,
-                payload,
-            },
-            TotalVotingPowerUpdateEvent {
-                new_total_voting_power: self.total_supply,
-            },
-            VotingPowerUpdateEvent {
-                voter: to,
-                new_voting_power: new_balance,
-            },
-        ))
+        Ok(())
     }
 
-    pub fn transfer(
-        &mut self,
-        from: Principal,
-        to: Principal,
-        qty: u64,
-        payload: Payload,
-    ) -> Result<
-        (
-            TokenMoveEvent,
-            VotingPowerUpdateEvent,
-            VotingPowerUpdateEvent,
-        ),
-        Error,
-    > {
+    pub fn transfer(&mut self, from: Principal, to: Principal, qty: u64) -> Result<(), Error> {
         if qty == 0 {
             return Err(Error::ZeroQuantity);
         }
@@ -93,37 +56,10 @@ impl CurrencyToken {
 
         self.balances.insert(to, new_to_balance);
 
-        Ok((
-            TokenMoveEvent {
-                from: Some(from),
-                to: Some(to),
-                qty,
-                payload,
-            },
-            VotingPowerUpdateEvent {
-                voter: from,
-                new_voting_power: new_from_balance,
-            },
-            VotingPowerUpdateEvent {
-                voter: to,
-                new_voting_power: new_to_balance,
-            },
-        ))
+        Ok(())
     }
 
-    pub fn burn(
-        &mut self,
-        from: Principal,
-        qty: u64,
-        payload: Payload,
-    ) -> Result<
-        (
-            TokenMoveEvent,
-            TotalVotingPowerUpdateEvent,
-            VotingPowerUpdateEvent,
-        ),
-        Error,
-    > {
+    pub fn burn(&mut self, from: Principal, qty: u64) -> Result<(), Error> {
         if qty == 0 {
             return Err(Error::ZeroQuantity);
         }
@@ -144,21 +80,7 @@ impl CurrencyToken {
 
         self.total_supply -= qty;
 
-        Ok((
-            TokenMoveEvent {
-                from: Some(from),
-                to: None,
-                qty,
-                payload,
-            },
-            TotalVotingPowerUpdateEvent {
-                new_total_voting_power: self.total_supply,
-            },
-            VotingPowerUpdateEvent {
-                voter: from,
-                new_voting_power: new_balance,
-            },
-        ))
+        Ok(())
     }
 
     pub fn update_info(&mut self, new_info: CurrencyTokenInfo) -> CurrencyTokenInfo {
@@ -187,6 +109,46 @@ impl CurrencyToken {
             None => 0,
             Some(b) => *b,
         }
+    }
+
+    pub fn register_recurrent_transfer_task(&mut self, from: Principal, task_id: TaskId) {
+        match self.recurrent_transfer_tasks.entry(from) {
+            Entry::Occupied(mut entry) => {
+                entry.get_mut().insert(task_id);
+            }
+            Entry::Vacant(mut entry) => {
+                let mut s = HashSet::new();
+                s.insert(task_id);
+
+                entry.insert(s);
+            }
+        };
+    }
+
+    pub fn unregister_recurrent_transfer_task(&mut self, from: Principal, task_id: TaskId) -> bool {
+        match self.recurrent_transfer_tasks.get_mut(&from) {
+            Some(tasks) => tasks.remove(&task_id),
+            None => false,
+        }
+    }
+
+    pub fn get_recurrent_transfer_tasks(&self, from: Principal) -> Vec<TaskId> {
+        self.recurrent_transfer_tasks
+            .get(&from)
+            .map(|t| t.iter().cloned().collect::<Vec<_>>())
+            .unwrap_or_default()
+    }
+
+    pub fn register_recurrent_mint_task(&mut self, task_id: TaskId) {
+        self.recurrent_mint_tasks.insert(task_id);
+    }
+
+    pub fn unregister_recurrent_mint_task(&mut self, task_id: TaskId) -> bool {
+        self.recurrent_mint_tasks.remove(&task_id)
+    }
+
+    pub fn get_recurrent_mint_tasks(&self) -> Vec<TaskId> {
+        self.recurrent_mint_tasks.iter().cloned().collect()
     }
 }
 
@@ -239,41 +201,18 @@ mod tests {
         let (mut token, controller) = create_currency_token();
         let user_1 = random_principal_test();
 
-        let (ev1, ev2, ev3) = token.mint(user_1, 100, None).ok().unwrap();
+        token.mint(user_1, 100).ok().unwrap();
 
         assert_eq!(token.total_supply, 100);
         assert_eq!(token.balances.len(), 1);
         assert_eq!(token.balances.get(&user_1).unwrap().clone(), 100);
 
-        assert_eq!(ev1.from, None);
-        assert_eq!(ev1.to, Some(user_1));
-        assert_eq!(ev1.qty, 100);
-        assert_eq!(ev1.payload, None);
-
-        assert_eq!(ev2.new_total_voting_power, 100);
-
-        assert_eq!(ev3.voter, user_1);
-        assert_eq!(ev3.new_voting_power, 100);
-
-        let (ev1, ev2, ev3) = token
-            .mint(controller, 200, Some(magic_blob()))
-            .ok()
-            .unwrap();
+        token.mint(controller, 200).ok().unwrap();
 
         assert_eq!(token.total_supply, 300);
         assert_eq!(token.balances.len(), 2);
         assert_eq!(token.balances.get(&user_1).unwrap().clone(), 100);
         assert_eq!(token.balances.get(&controller).unwrap().clone(), 200);
-
-        assert_eq!(ev1.from, None);
-        assert_eq!(ev1.qty, 200);
-        assert_eq!(ev1.to, Some(controller));
-        assert_eq!(ev1.payload, Some(magic_blob()));
-
-        assert_eq!(ev2.new_total_voting_power, 300);
-
-        assert_eq!(ev3.voter, controller);
-        assert_eq!(ev3.new_voting_power, 200);
     }
 
     #[test]
@@ -281,43 +220,23 @@ mod tests {
         let (mut token, controller) = create_currency_token();
         let user_1 = random_principal_test();
 
-        token.mint(user_1, 100, None).ok().unwrap();
+        token.mint(user_1, 100).ok().unwrap();
 
-        let (ev1, ev2, ev3) = token.burn(user_1, 90, None).ok().unwrap();
+        token.burn(user_1, 90).ok().unwrap();
 
         assert_eq!(token.balances.len(), 1);
         assert_eq!(token.balances.get(&user_1).unwrap().clone(), 10);
         assert_eq!(token.total_supply, 10);
 
-        assert_eq!(ev1.from, Some(user_1));
-        assert_eq!(ev1.to, None);
-        assert_eq!(ev1.qty, 90);
-        assert_eq!(ev1.payload, None);
+        token.burn(user_1, 20).err().unwrap();
 
-        assert_eq!(ev2.new_total_voting_power, 10);
-
-        assert_eq!(ev3.voter, user_1);
-        assert_eq!(ev3.new_voting_power, 10);
-
-        token.burn(user_1, 20, None).err().unwrap();
-
-        let (ev1, ev2, ev3) = token.burn(user_1, 10, None).ok().unwrap();
+        token.burn(user_1, 10).ok().unwrap();
 
         assert!(token.balances.is_empty());
         assert!(token.balances.get(&user_1).is_none());
         assert_eq!(token.total_supply, 0);
 
-        assert_eq!(ev1.from, Some(user_1));
-        assert_eq!(ev1.to, None);
-        assert_eq!(ev1.qty, 10);
-        assert_eq!(ev1.payload, None);
-
-        assert_eq!(ev2.new_total_voting_power, 0);
-
-        assert_eq!(ev3.voter, user_1);
-        assert_eq!(ev3.new_voting_power, 0);
-
-        token.burn(user_1, 20, None).err().unwrap();
+        token.burn(user_1, 20).err().unwrap();
     }
 
     #[test]
@@ -326,51 +245,29 @@ mod tests {
         let user_1 = random_principal_test();
         let user_2 = random_principal_test();
 
-        token.mint(user_1, 1000, None).ok().unwrap();
+        token.mint(user_1, 1000).ok().unwrap();
 
-        let (ev1, ev2, ev3) = token.transfer(user_1, user_2, 100, None).ok().unwrap();
+        token.transfer(user_1, user_2, 100).ok().unwrap();
 
         assert_eq!(token.balances.len(), 2);
         assert_eq!(token.balances.get(&user_1).unwrap().clone(), 900);
         assert_eq!(token.balances.get(&user_2).unwrap().clone(), 100);
         assert_eq!(token.total_supply, 1000);
 
-        assert_eq!(ev1.from, Some(user_1));
-        assert_eq!(ev1.to, Some(user_2));
-        assert_eq!(ev1.qty, 100);
-        assert_eq!(ev1.payload, None);
+        token.transfer(user_1, user_2, 1000).err().unwrap();
 
-        assert_eq!(ev2.voter, user_1);
-        assert_eq!(ev2.new_voting_power, 900);
+        token.transfer(controller, user_2, 100).err().unwrap();
 
-        assert_eq!(ev3.voter, user_2);
-        assert_eq!(ev3.new_voting_power, 100);
-
-        token.transfer(user_1, user_2, 1000, None).err().unwrap();
-
-        token.transfer(controller, user_2, 100, None).err().unwrap();
-
-        let (ev1, ev2, ev3) = token.transfer(user_2, user_1, 100, None).ok().unwrap();
+        token.transfer(user_2, user_1, 100).ok().unwrap();
 
         assert_eq!(token.balances.len(), 1);
         assert_eq!(token.balances.get(&user_1).unwrap().clone(), 1000);
         assert!(token.balances.get(&user_2).is_none());
         assert_eq!(token.total_supply, 1000);
 
-        assert_eq!(ev1.from, Some(user_2));
-        assert_eq!(ev1.to, Some(user_1));
-        assert_eq!(ev1.qty, 100);
-        assert_eq!(ev1.payload, None);
+        token.transfer(user_2, user_1, 1).err().unwrap();
 
-        assert_eq!(ev2.voter, user_2);
-        assert_eq!(ev2.new_voting_power, 0);
-
-        assert_eq!(ev3.voter, user_1);
-        assert_eq!(ev3.new_voting_power, 1000);
-
-        token.transfer(user_2, user_1, 1, None).err().unwrap();
-
-        token.transfer(user_2, user_1, 0, None).err().unwrap();
+        token.transfer(user_2, user_1, 0).err().unwrap();
     }
 
     #[test]

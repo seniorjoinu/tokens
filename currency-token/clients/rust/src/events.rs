@@ -1,7 +1,7 @@
 use ic_cdk::export::candid::{CandidType, Deserialize, Principal};
 use ic_event_hub_macros::Event;
 
-use crate::types::{CurrencyTokenInfo, Payload, Controllers};
+use crate::types::{Controllers, CurrencyTokenInfo, Payload};
 
 #[derive(Event, CandidType, Deserialize)]
 pub struct TokenMoveEvent {
@@ -10,7 +10,7 @@ pub struct TokenMoveEvent {
     #[topic]
     pub to: Option<Principal>,
     pub qty: u64,
-    pub payload: Payload,
+    pub event_payload: Payload,
 }
 
 #[derive(Debug, CandidType, Deserialize)]

@@ -1,4 +1,6 @@
 use ic_cdk::export::candid::{CandidType, Deserialize, Principal};
+use ic_cron::types::{Iterations, TaskId, Task};
+use std::fmt::{Display, Formatter};
 
 pub type Controllers = Vec<Principal>;
 pub type Payload = Option<Vec<u8>>;
@@ -10,9 +12,9 @@ pub struct ControllerList {
 }
 
 impl ControllerList {
-    pub fn single(controller: Option<Principal>) -> ControllerList {
-        let controllers = if controller.is_some() {
-            vec![controller.unwrap()]
+    pub fn single(controller_opt: Option<Principal>) -> ControllerList {
+        let controllers = if let Some(controller) = controller_opt {
+            vec![controller]
         } else {
             Vec::new()
         };
@@ -28,7 +30,43 @@ impl ControllerList {
 pub struct CurrencyTokenTransferEntry {
     pub to: Principal,
     pub qty: u64,
-    pub payload: Payload,
+    pub event_payload: Payload,
+    pub recurrence: Option<(u64, Iterations)>,
+}
+
+#[derive(CandidType, Deserialize)]
+pub struct DequeueRecurrentTaskRequest {
+    pub task_ids: Vec<TaskId>,
+}
+
+#[derive(CandidType, Deserialize)]
+pub struct GetRecurrentTransferTasksRequest {
+    pub owner: Principal,
+}
+
+#[derive(CandidType, Deserialize)]
+pub struct GetRecurrentTasksResponse {
+    pub tasks: Vec<Task>,
+}
+
+#[derive(CandidType, Deserialize)]
+pub struct DequeueRecurrentTaskResponse {
+    pub succeed: Vec<bool>,
+}
+
+#[derive(CandidType, Deserialize)]
+pub struct CurrencyTokenRecurrentTransferRequest {
+    pub from: Principal,
+    pub to: Principal,
+    pub qty: u64,
+    pub event_payload: Payload,
+}
+
+#[derive(CandidType, Deserialize)]
+pub struct CurrencyTokenRecurrentMintRequest {
+    pub to: Principal,
+    pub qty: u64,
+    pub event_payload: Payload,
 }
 
 #[derive(Clone, CandidType, Deserialize)]
@@ -38,12 +76,24 @@ pub struct CurrencyTokenInfo {
     pub decimals: u8,
 }
 
-#[derive(CandidType, Deserialize)]
 pub enum Error {
     InsufficientBalance,
     ZeroQuantity,
     AccessDenied,
     ForbiddenOperation,
+}
+
+impl Display for Error {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let str = match self {
+            Error::InsufficientBalance => "InsufficientBalance",
+            Error::ZeroQuantity => "ZeroQuantity",
+            Error::AccessDenied => "AccessDenied",
+            Error::ForbiddenOperation => "ForbiddenOperation",
+        };
+
+        f.write_str(str)
+    }
 }
 
 #[derive(CandidType, Deserialize)]
@@ -101,15 +151,12 @@ pub struct TransferRequest {
     pub entries: Vec<CurrencyTokenTransferEntry>,
 }
 
-#[derive(CandidType, Deserialize)]
-pub struct TransferResponse {
-    pub results: Vec<Result<(), Error>>,
-}
+pub type TransferResponse = ();
 
 #[derive(CandidType, Deserialize)]
 pub struct BurnRequest {
-    pub quantity: u64,
+    pub qty: u64,
     pub payload: Payload,
 }
 
-pub type BurnResponse = Result<(), Error>;
+pub type BurnResponse = ();

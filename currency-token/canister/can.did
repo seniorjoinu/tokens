@@ -1,93 +1,137 @@
-type OnMoveEventListenerError = variant {
-    AccessDenied;
-    ListenerDoesNotExist;
-    ListenerFatalError;
+type Controllers = vec principal;
+type Payload = opt blob;
+type TaskId = nat64;
+
+type ControllerList = record {
+    mint_controllers : Controllers;
+    info_controllers : Controllers;
 };
 
-type Error = variant {
-    InsufficientBalance;
-    AccessDenied;
-    ForbiddenOperation;
-    ListenerError : OnMoveEventListenerError;
+type Iterations = variant {
+    Infinite;
+    Exact : nat64;
 };
 
-type FungibleTokenInfo = record {
-    name : Text;
-    symbol : Text;
+type SchedulingInterval = record {
+    duration_nano : nat64;
+    iterations : Iterations;
+};
+
+type CurrencyTokenTransferEntry = record {
+    to : principal;
+    qty : nat64;
+    event_payload : Payload;
+    recurrence : opt SchedulingInterval;
+};
+
+type DequeueRecurrentTaskRequest = record {
+    task_ids : vec TaskId;
+};
+
+type DequeueRecurrentTaskResponse = record {
+    succeed : vec bool;
+};
+
+type GetRecurrentTransferTasksRequest = record {
+    owner : principal;
+};
+
+type RecurrentTransferTask = record {
+    task_id : TaskId;
+    from : principal;
+    to : principal;
+    qty : nat64;
+    event_payload : Payload;
+    scheduled_at : nat64;
+    rescheduled_at : opt nat64;
+    scheduling_interval : SchedulingInterval;
+};
+
+type RecurrentMintTask = record {
+    task_id : TaskId;
+    to : principal;
+    qty : nat64;
+    event_payload : Payload;
+    scheduled_at : nat64;
+    rescheduled_at : opt nat64;
+    scheduling_interval : SchedulingInterval;
+};
+
+type GetRecurrentTransferTasksResponse = record {
+    tasks : vec RecurrentTransferTask;
+};
+
+type GetRecurrentMintTasksResponse = record {
+    tasks : vec RecurrentMintTask;
+};
+
+type CurrencyTokenInfo = record {
+    name : text;
+    symbol : text;
     decimals : nat8;
 };
 
-type InfoResult = variant {
-    Ok : FungibleTokenInfo;
-    Err : Error;
+type CurrencyTokenInitRequest = record {
+    info : CurrencyTokenInfo;
 };
 
-type Account = opt principal;
-
-type Controllers = record {
-    mint_controller : Account;
-    on_move_controller : Account;
-    info_controller : Account;
+type GetBalanceOfRequest = record {
+    account_owner : principal;
+};
+type GetBalanceOfResponse = record {
+    balance : nat64;
 };
 
-type SimpleResult = variant {
-    Ok;
-    Err : Error;
+type GetTotalSupplyResponse = record {
+    total_supply : nat64;
 };
 
-type AccountFilter = opt Account;
-
-type OnMoveEventFilter = record {
-    from : AccountFilter;
-    to : AccountFilter;
+type GetInfoResponse = record {
+    info : CurrencyTokenInfo;
 };
 
-type RemoteCallEndpoint = record {
-     canister_id: principal;
-     method_name: text;
+type UpdateInfoRequest = record {
+    new_info : CurrencyTokenInfo;
+};
+type UpdateInfoResponse = record {
+    old_info : CurrencyTokenInfo;
 };
 
-type OnMoveEventListener = record {
-    filter : OnMoveEventFilter;
-    endpoint : RemoveCallEndpoint;
+type GetControllersResponse = record {
+    controllers : ControllerList;
 };
 
-type FungibleTokenInitPayload = record {
-    info : FungibleTokenInfo;
-    controllers : variant { None; Some : Controllers; };
-    on_move_listeners : vec OnMoveEventListener;
+type UpdateControllersRequest = record {
+    new_controllers : Controllers;
+};
+type UpdateControllersResponse = record {
+    old_controllers : Controllers;
 };
 
-type FungibleTokenTransferEntry = record {
-    to : principal;
+type TransferRequest = record {
+    entries : vec CurrencyTokenTransferEntry;
+};
+
+type BurnRequest = record {
     qty : nat64;
+    event_payload : Payload;
 };
 
-type SubscribeResult = variant {
-    Ok : nat64;
-    Err : Error;
-};
+service : (CurrencyTokenInitRequest) -> {
+    "mint" : (TransferRequest) -> ();
+    "transfer" : (TransferRequest) -> ();
+    "burn" : (BurnRequest) -> ();
+    "get_balance_of" : (GetBalanceOfRequest) -> (GetBalanceOfResponse) query;
+    "get_total_supply" : () -> (GetTotalSupplyResponse) query;
+    "get_info" : () -> (GetInfoResponse) query;
+    "update_info" : (UpdateInfoRequest) -> (UpdateInfoResponse);
 
-type UnsubscribeResult = variant {
-    Ok : OnMoveListener;
-    Err : Error;
-};
+    "get_controllers" : () -> (GetControllersResponse) query;
+    "update_info_controller" : (UpdateControllersRequest) -> (UpdateControllersResponse);
+    "update_mint_controller" : (UpdateControllersRequest) -> (UpdateControllersResponse);
 
-service : {
-    "info" : () -> (FungibleTokenInfo) query;
-    "update_info" : (FungibleTokenInfo) -> (InfoResult);
-
-    "controllers" : () -> (Controllers) query;
-    "update_info_controller" : (Account) -> (SimpleResult);
-    "update_mint_controller" : (Account) -> (SimpleResult);
-    "update_on_move_controller" : (Account) -> (SimpleResult);
-
-    "balance_of" : (principal) -> (nat64) query;
-    "total_supply" : () -> (nat64) query;
-    "mint" : (vec FungibleTokenTransferEntry) -> (vec SimpleResult);
-    "send" : (vec FungibleTokenTransferEntry) -> (vec SimpleResult);
-    "burn" : (nat64) -> (SimpleResult);
-
-    "add_on_move_event_listeners" : (vec OnMoveEventListener) -> (vec SubscribeResult);
-    "delete_on_move_event_listeners" : (vec nat64) -> (vec UnsubscribeResult);
+    "dequeue_recurrent_transfer_tasks" : (DequeueRecurrentTaskRequest) -> (DequeueRecurrentTaskResponse);
+    "get_recurrent_transfer_tasks" : (GetRecurrentTransferTasksRequest) -> (GetRecurrentTransferTasksResponse) query;
+    "dequeue_recurrent_mint_tasks" : (DequeueRecurrentTaskRequest) -> (DequeueRecurrentTaskResponse);
+    "get_recurrent_mint_tasks" : () -> (GetRecurrentMintTasksResponse) query;
 }

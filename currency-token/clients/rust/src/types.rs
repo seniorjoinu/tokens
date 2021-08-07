@@ -1,5 +1,5 @@
 use ic_cdk::export::candid::{CandidType, Deserialize, Principal};
-use ic_cron::types::{Iterations, TaskId, Task};
+use ic_cron::types::{SchedulingInterval, TaskId};
 use std::fmt::{Display, Formatter};
 
 pub type Controllers = Vec<Principal>;
@@ -31,7 +31,7 @@ pub struct CurrencyTokenTransferEntry {
     pub to: Principal,
     pub qty: u64,
     pub event_payload: Payload,
-    pub recurrence: Option<(u64, Iterations)>,
+    pub recurrence: Option<SchedulingInterval>,
 }
 
 #[derive(CandidType, Deserialize)]
@@ -40,18 +40,46 @@ pub struct DequeueRecurrentTaskRequest {
 }
 
 #[derive(CandidType, Deserialize)]
+pub struct DequeueRecurrentTaskResponse {
+    pub succeed: Vec<bool>,
+}
+
+#[derive(CandidType, Deserialize)]
 pub struct GetRecurrentTransferTasksRequest {
     pub owner: Principal,
 }
 
 #[derive(CandidType, Deserialize)]
-pub struct GetRecurrentTasksResponse {
-    pub tasks: Vec<Task>,
+pub struct RecurrentTransferTask {
+    pub task_id: TaskId,
+    pub from: Principal,
+    pub to: Principal,
+    pub qty: u64,
+    pub event_payload: Payload,
+    pub scheduled_at: u64,
+    pub rescheduled_at: Option<u64>,
+    pub scheduling_interval: SchedulingInterval,
 }
 
 #[derive(CandidType, Deserialize)]
-pub struct DequeueRecurrentTaskResponse {
-    pub succeed: Vec<bool>,
+pub struct RecurrentMintTask {
+    pub task_id: TaskId,
+    pub to: Principal,
+    pub qty: u64,
+    pub event_payload: Payload,
+    pub scheduled_at: u64,
+    pub rescheduled_at: Option<u64>,
+    pub scheduling_interval: SchedulingInterval,
+}
+
+#[derive(CandidType, Deserialize)]
+pub struct GetRecurrentTransferTasksResponse {
+    pub tasks: Vec<RecurrentTransferTask>,
+}
+
+#[derive(CandidType, Deserialize)]
+pub struct GetRecurrentMintTasksResponse {
+    pub tasks: Vec<RecurrentMintTask>,
 }
 
 #[derive(CandidType, Deserialize)]
@@ -151,12 +179,8 @@ pub struct TransferRequest {
     pub entries: Vec<CurrencyTokenTransferEntry>,
 }
 
-pub type TransferResponse = ();
-
 #[derive(CandidType, Deserialize)]
 pub struct BurnRequest {
     pub qty: u64,
-    pub payload: Payload,
+    pub event_payload: Payload,
 }
-
-pub type BurnResponse = ();

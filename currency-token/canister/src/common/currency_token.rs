@@ -116,7 +116,7 @@ impl CurrencyToken {
             Entry::Occupied(mut entry) => {
                 entry.get_mut().insert(task_id);
             }
-            Entry::Vacant(mut entry) => {
+            Entry::Vacant(entry) => {
                 let mut s = HashSet::new();
                 s.insert(task_id);
 
@@ -154,7 +154,7 @@ impl CurrencyToken {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
+    use std::collections::{HashMap, HashSet};
 
     use ic_cdk::export::candid::Principal;
     use union_utils::random_principal_test;
@@ -178,6 +178,8 @@ mod tests {
                 decimals: 8,
             },
             controllers: ControllerList::single(Some(controller)),
+            recurrent_mint_tasks: HashSet::new(),
+            recurrent_transfer_tasks: HashMap::new(),
         };
 
         (token, controller)

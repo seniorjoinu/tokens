@@ -1,9 +1,9 @@
 use ic_cdk::caller;
 
-use crate::get_state;
+use crate::get_token;
 
 pub fn issue_guard() -> Result<(), String> {
-    if get_state()
+    if get_token()
         .controllers
         .issue_controllers
         .contains(&caller())
@@ -15,7 +15,7 @@ pub fn issue_guard() -> Result<(), String> {
 }
 
 pub fn revoke_guard() -> Result<(), String> {
-    if get_state()
+    if get_token()
         .controllers
         .revoke_controllers
         .contains(&caller())
@@ -27,7 +27,7 @@ pub fn revoke_guard() -> Result<(), String> {
 }
 
 pub fn event_listeners_guard() -> Result<(), String> {
-    if get_state()
+    if get_token()
         .controllers
         .event_listeners_controllers
         .contains(&caller())

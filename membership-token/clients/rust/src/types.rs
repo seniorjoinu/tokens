@@ -1,7 +1,7 @@
 use ic_cdk::export::candid::{CandidType, Deserialize, Principal};
+use std::fmt::{Display, Formatter};
 
 #[derive(CandidType, Deserialize)]
-#[cfg_attr(test, derive(Debug))]
 pub enum Error {
     AlreadyIsAMember,
     IsNotAMember,
@@ -9,10 +9,22 @@ pub enum Error {
     ForbiddenOperation,
 }
 
+impl Display for Error {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let str = match self {
+            Error::AlreadyIsAMember => "AlreadyIsAMember",
+            Error::IsNotAMember => "IsNotAMember",
+            Error::AccessDenied => "AccessDenied",
+            Error::ForbiddenOperation => "ForbiddenOperation",
+        };
+
+        f.write_str(str)
+    }
+}
+
 pub type Controllers = Vec<Principal>;
 
 #[derive(Clone, CandidType, Deserialize)]
-#[cfg_attr(test, derive(Debug))]
 pub struct ControllerList {
     pub issue_controllers: Controllers,
     pub revoke_controllers: Controllers,
@@ -36,55 +48,36 @@ impl ControllerList {
 }
 
 #[derive(CandidType, Deserialize)]
-#[cfg_attr(test, derive(Debug))]
 pub struct IsMemberRequest {
-    pub principal: Principal,
+    pub prin: Principal,
 }
 
 #[derive(CandidType, Deserialize)]
-#[cfg_attr(test, derive(Debug))]
 pub struct IsMemberResponse {
     pub is_member: bool,
 }
 
 #[derive(CandidType, Deserialize)]
-#[cfg_attr(test, derive(Debug))]
 pub struct GetTotalMembersResponse {
     pub total_members: u64,
 }
 
 #[derive(CandidType, Deserialize)]
-#[cfg_attr(test, derive(Debug))]
 pub struct IssueRevokeMembershipsRequest {
     pub principals: Vec<Principal>,
 }
 
 #[derive(CandidType, Deserialize)]
-#[cfg_attr(test, derive(Debug))]
-pub struct IssueRevokeMembershipsResponse {
-    pub results: Vec<Result<(), Error>>,
-}
-
-#[derive(CandidType, Deserialize)]
-#[cfg_attr(test, derive(Debug))]
-pub struct AcceptDeclineMembershipResponse {
-    pub result: Result<(), Error>,
-}
-
-#[derive(CandidType, Deserialize)]
-#[cfg_attr(test, derive(Debug))]
 pub struct GetControllersResponse {
     pub controllers: ControllerList,
 }
 
 #[derive(CandidType, Deserialize)]
-#[cfg_attr(test, derive(Debug))]
 pub struct UpdateControllerRequest {
     pub new_controllers: Controllers,
 }
 
 #[derive(CandidType, Deserialize)]
-#[cfg_attr(test, derive(Debug))]
 pub struct UpdateControllerResponse {
     pub old_controllers: Controllers,
 }

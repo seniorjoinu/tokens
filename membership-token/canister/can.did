@@ -1,1 +1,47 @@
-service : {}
+type Controllers = vec principal;
+type ControllerList = record {
+    issue_controllers : Controllers;
+    revoke_controllers : Controllers;
+    event_listeners_controllers : Controllers;
+};
+
+type IsMemberRequest = record {
+    prin : principal;
+};
+type IsMemberResponse = record {
+    is_member : bool;
+};
+
+type GetTotalMembersResponse = record {
+    total_members : nat64;
+};
+
+type IssueRevokeMembershipsRequest = record {
+    principals : vec principal;
+};
+
+type GetControllersResponse = record {
+    controllers : ControllerList;
+};
+
+type UpdateControllerRequest = record {
+    new_controllers : Controllers;
+};
+type UpdateControllerResponse = record {
+    old_controllers : Controllers;
+};
+
+service : {
+    "issue_memberships" : (IssueRevokeMembershipsRequest) -> ();
+    "revoke_memberships" : (IssueRevokeMembershipsRequest) -> ();
+    "accept_membership" : () -> ();
+    "decline_membership" : () -> ();
+    "is_member" : (IsMemberRequest) -> (IsMemberResponse) query;
+    "is_pending_member" : (IsMemberRequest) -> (IsMemberResponse) query;
+    "get_total_members" : () -> (GetTotalMembersResponse) query;
+
+    "update_issue_controller" : (UpdateControllerRequest) -> (UpdateControllerResponse);
+    "update_revoke_controller" : (UpdateControllerRequest) -> (UpdateControllerResponse);
+    "update_event_listeners_controller" : (UpdateControllerRequest) -> (UpdateControllerResponse);
+    "get_controllers" : () -> (GetControllersResponse) query;
+}

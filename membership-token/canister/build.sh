@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 
-cargo build --target wasm32-unknown-unknown --package membership-token && \
- ic-cdk-optimizer ./target/wasm32-unknown-unknown/debug/membership_token.wasm -o ./target/wasm32-unknown-unknown/debug/membership-token-opt.wasm
+cargo build --target wasm32-unknown-unknown --release --package membership-token && \
+ ic-cdk-optimizer ./target/wasm32-unknown-unknown/release/membership_token.wasm -o ./target/wasm32-unknown-unknown/release/membership-token-opt.wasm

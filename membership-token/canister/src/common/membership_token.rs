@@ -1,9 +1,7 @@
 use std::collections::HashSet;
 
 use ic_cdk::export::candid::{CandidType, Deserialize, Principal};
-use union_utils::{TotalVotingPowerUpdateEvent, VotingPowerUpdateEvent};
 
-use antifragile_membership_token_client::events::{MembershipStatus, MembershipStatusUpdateEvent};
 use antifragile_membership_token_client::types::{ControllerList, Controllers, Error};
 
 #[derive(CandidType, Deserialize)]
@@ -22,33 +20,17 @@ impl MembershipToken {
         }
     }
 
-    pub fn issue_membership(
-        &mut self,
-        to: Principal,
-    ) -> Result<MembershipStatusUpdateEvent, Error> {
+    pub fn issue_membership(&mut self, to: Principal) -> Result<(), Error> {
         if self.is_member(&to) || self.is_pending_member(&to) {
             return Err(Error::AlreadyIsAMember);
         }
 
         self.pending_members.insert(to);
 
-        Ok(MembershipStatusUpdateEvent {
-            member: to,
-            new_status: MembershipStatus::Issued,
-        })
+        Ok(())
     }
 
-    pub fn accept_membership(
-        &mut self,
-        caller: Principal,
-    ) -> Result<
-        (
-            MembershipStatusUpdateEvent,
-            TotalVotingPowerUpdateEvent,
-            VotingPowerUpdateEvent,
-        ),
-        Error,
-    > {
+    pub fn accept_membership(&mut self, caller: Principal) -> Result<(), Error> {
         if !self.is_pending_member(&caller) {
             return Err(Error::IsNotAMember);
         }
@@ -59,25 +41,10 @@ impl MembershipToken {
         self.pending_members.remove(&caller);
         self.members.insert(caller);
 
-        Ok((
-            MembershipStatusUpdateEvent {
-                member: caller,
-                new_status: MembershipStatus::Accepted,
-            },
-            TotalVotingPowerUpdateEvent {
-                new_total_voting_power: self.get_total_members() as u64,
-            },
-            VotingPowerUpdateEvent {
-                voter: caller,
-                new_voting_power: 1,
-            },
-        ))
+        Ok(())
     }
 
-    pub fn decline_membership(
-        &mut self,
-        caller: Principal,
-    ) -> Result<MembershipStatusUpdateEvent, Error> {
+    pub fn decline_membership(&mut self, caller: Principal) -> Result<(), Error> {
         if !self.is_pending_member(&caller) {
             return Err(Error::IsNotAMember);
         }
@@ -87,42 +54,17 @@ impl MembershipToken {
 
         self.pending_members.remove(&caller);
 
-        Ok(MembershipStatusUpdateEvent {
-            member: caller,
-            new_status: MembershipStatus::Declined,
-        })
+        Ok(())
     }
 
-    pub fn revoke_membership(
-        &mut self,
-        from: Principal,
-    ) -> Result<
-        (
-            MembershipStatusUpdateEvent,
-            TotalVotingPowerUpdateEvent,
-            VotingPowerUpdateEvent,
-        ),
-        Error,
-    > {
+    pub fn revoke_membership(&mut self, from: Principal) -> Result<(), Error> {
         if !self.is_member(&from) {
             return Err(Error::IsNotAMember);
         }
 
         self.members.remove(&from);
 
-        Ok((
-            MembershipStatusUpdateEvent {
-                member: from,
-                new_status: MembershipStatus::Revoked,
-            },
-            TotalVotingPowerUpdateEvent {
-                new_total_voting_power: self.get_total_members() as u64,
-            },
-            VotingPowerUpdateEvent {
-                voter: from,
-                new_voting_power: 0,
-            },
-        ))
+        Ok(())
     }
 
     pub fn get_total_members(&self) -> usize {

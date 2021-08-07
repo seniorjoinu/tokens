@@ -1,5 +1,5 @@
-use ic_cdk::caller;
 use ic_cdk::export::candid::export_service;
+use ic_cdk::{caller, trap};
 use ic_cdk_macros::{init, query, update};
 use ic_event_hub_macros::{
     implement_add_event_listeners, implement_event_emitter, implement_get_event_listeners,
@@ -7,11 +7,13 @@ use ic_event_hub_macros::{
 };
 use union_utils::log;
 
-use antifragile_membership_token_client::events::{ControllerType, ControllersUpdateEvent};
+use antifragile_membership_token_client::events::{
+    ControllerType, ControllersUpdateEvent, MembershipStatus, MembershipStatusUpdateEvent,
+};
 use antifragile_membership_token_client::types::{
-    AcceptDeclineMembershipResponse, ControllerList, GetControllersResponse,
-    GetTotalMembersResponse, IsMemberRequest, IsMemberResponse, IssueRevokeMembershipsRequest,
-    IssueRevokeMembershipsResponse, UpdateControllerRequest, UpdateControllerResponse,
+    ControllerList, GetControllersResponse, GetTotalMembersResponse, IsMemberRequest,
+    IsMemberResponse, IssueRevokeMembershipsRequest, UpdateControllerRequest,
+    UpdateControllerResponse,
 };
 
 use crate::common::guards::{event_listeners_guard, issue_guard, revoke_guard};
@@ -34,70 +36,78 @@ fn init() {
 }
 
 #[update(guard = "issue_guard")]
-fn issue_memberships(request: IssueRevokeMembershipsRequest) -> IssueRevokeMembershipsResponse {
+fn issue_memberships(request: IssueRevokeMembershipsRequest) {
     log("membership_token.issue_memberships()");
 
-    let state = get_state();
+    let token = get_token();
 
-    let results: Vec<_> = request
-        .principals
-        .into_iter()
-        .map(|to| state.issue_membership(to).map(emit))
-        .collect();
-
-    IssueRevokeMembershipsResponse { results }
+    for to in request.principals.into_iter() {
+        match token.issue_membership(to) {
+            Ok(_) => emit(MembershipStatusUpdateEvent {
+                member: to,
+                new_status: MembershipStatus::Issued,
+            }),
+            Err(e) => {
+                trap(format!("Failed to issue membership on principal {} - {}", to, e).as_str())
+            }
+        }
+    }
 }
 
 #[update(guard = "revoke_guard")]
-fn revoke_memberships(request: IssueRevokeMembershipsRequest) -> IssueRevokeMembershipsResponse {
+fn revoke_memberships(request: IssueRevokeMembershipsRequest) {
     log("membership_token.revoke_memberships()");
 
-    let state = get_state();
+    let token = get_token();
 
-    let results: Vec<_> = request
-        .principals
-        .into_iter()
-        .map(|from| {
-            state.revoke_membership(from).map(|(ev1, ev2, ev3)| {
-                emit(ev1);
-                emit(ev2);
-                emit(ev3);
-            })
-        })
-        .collect();
-
-    IssueRevokeMembershipsResponse { results }
+    for from in request.principals.into_iter() {
+        match token.revoke_membership(from) {
+            Ok(_) => emit(MembershipStatusUpdateEvent {
+                member: from,
+                new_status: MembershipStatus::Revoked,
+            }),
+            Err(e) => {
+                trap(format!("Failed to revoke membership on principal {} - {}", from, e).as_str())
+            }
+        }
+    }
 }
 
 #[update]
-fn accept_membership() -> AcceptDeclineMembershipResponse {
+fn accept_membership() {
     log("membership_token.accept_membership()");
 
-    let result = get_state()
-        .accept_membership(caller())
-        .map(|(ev1, ev2, ev3)| {
-            emit(ev1);
-            emit(ev2);
-            emit(ev3);
-        });
+    let caller = caller();
 
-    AcceptDeclineMembershipResponse { result }
+    match get_token().accept_membership(caller) {
+        Ok(_) => emit(MembershipStatusUpdateEvent {
+            member: caller,
+            new_status: MembershipStatus::Accepted,
+        }),
+        Err(e) => trap(format!("Failed to accept membership for caller - {}", e).as_str()),
+    }
 }
 
 #[update]
-fn decline_membership() -> AcceptDeclineMembershipResponse {
+fn decline_membership() {
     log("membership_token.decline_membership()");
 
-    let result = get_state().decline_membership(caller()).map(emit);
+    let caller = caller();
 
-    AcceptDeclineMembershipResponse { result }
+    match get_token().decline_membership(caller) {
+        Ok(_) => emit(MembershipStatusUpdateEvent {
+            member: caller,
+            new_status: MembershipStatus::Declined,
+        }),
+        Err(e) => trap(format!("Failed to decline membership for caller - {}", e).as_str()),
+    }
 }
 
 #[query]
 fn is_member(request: IsMemberRequest) -> IsMemberResponse {
     log("membership_token.is_member()");
 
-    let is_member = get_state().is_member(&request.principal);
+    let is_member = get_token().is_member(&request.prin);
 
     IsMemberResponse { is_member }
 }
@@ -106,7 +116,7 @@ fn is_member(request: IsMemberRequest) -> IsMemberResponse {
 fn is_pending_member(request: IsMemberRequest) -> IsMemberResponse {
     log("membership_token.is_pending_member()");
 
-    let is_pending_member = get_state().is_pending_member(&request.principal);
+    let is_pending_member = get_token().is_pending_member(&request.prin);
 
     IsMemberResponse {
         is_member: is_pending_member,
@@ -117,7 +127,7 @@ fn is_pending_member(request: IsMemberRequest) -> IsMemberResponse {
 fn get_total_members() -> GetTotalMembersResponse {
     log("membership_token.total_members()");
 
-    let total_members = get_state().get_total_members() as u64;
+    let total_members = get_token().get_total_members() as u64;
 
     GetTotalMembersResponse { total_members }
 }
@@ -128,7 +138,7 @@ fn get_total_members() -> GetTotalMembersResponse {
 fn update_issue_controller(request: UpdateControllerRequest) -> UpdateControllerResponse {
     log("membership_token.update_issue_controller()");
 
-    let old_controller = get_state().update_issue_controllers(request.new_controllers.clone());
+    let old_controller = get_token().update_issue_controllers(request.new_controllers.clone());
 
     emit(ControllersUpdateEvent {
         kind: ControllerType::Issue,
@@ -144,7 +154,7 @@ fn update_issue_controller(request: UpdateControllerRequest) -> UpdateController
 fn update_revoke_controller(request: UpdateControllerRequest) -> UpdateControllerResponse {
     log("membership_token.update_revoke_controller()");
 
-    let old_controller = get_state().update_revoke_controllers(request.new_controllers.clone());
+    let old_controller = get_token().update_revoke_controllers(request.new_controllers.clone());
 
     emit(ControllersUpdateEvent {
         kind: ControllerType::Revoke,
@@ -161,7 +171,7 @@ fn update_event_listeners_controller(request: UpdateControllerRequest) -> Update
     log("membership_token.update_event_listeners_controller()");
 
     let old_controller =
-        get_state().update_event_listeners_controllers(request.new_controllers.clone());
+        get_token().update_event_listeners_controllers(request.new_controllers.clone());
 
     emit(ControllersUpdateEvent {
         kind: ControllerType::EventListeners,
@@ -177,7 +187,7 @@ fn update_event_listeners_controller(request: UpdateControllerRequest) -> Update
 fn get_controllers() -> GetControllersResponse {
     log("membership_token.get_controllers()");
 
-    let controllers = get_state().controllers.clone();
+    let controllers = get_token().controllers.clone();
 
     GetControllersResponse { controllers }
 }
@@ -200,6 +210,6 @@ fn export_candid() -> String {
 
 static mut STATE: Option<MembershipToken> = None;
 
-pub fn get_state() -> &'static mut MembershipToken {
+pub fn get_token() -> &'static mut MembershipToken {
     unsafe { STATE.as_mut().unwrap() }
 }

@@ -3,7 +3,7 @@
     "membership-token": {
       "build": "./build.sh",
       "candid": "./can.did",
-      "wasm": "./target/wasm32-unknown-unknown/debug/membership-token-opt.wasm",
+      "wasm": "./target/wasm32-unknown-unknown/release/membership-token-opt.wasm",
       "type": "custom"
     }
   },

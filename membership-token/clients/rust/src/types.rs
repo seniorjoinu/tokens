@@ -81,3 +81,8 @@ pub struct UpdateControllerRequest {
 pub struct UpdateControllerResponse {
     pub old_controllers: Controllers,
 }
+
+#[derive(CandidType, Deserialize)]
+pub struct InitRequest {
+    pub default_controllers: Option<Controllers>,
+}

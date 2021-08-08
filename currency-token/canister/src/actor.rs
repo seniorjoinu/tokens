@@ -14,13 +14,12 @@ use antifragile_currency_token_client::events::{
     ControllerType, ControllersUpdateEvent, InfoUpdateEvent, TokenMoveEvent,
 };
 use antifragile_currency_token_client::types::{
-    BurnRequest, ControllerList, CurrencyTokenInitRequest, CurrencyTokenRecurrentMintRequest,
-    CurrencyTokenRecurrentTransferRequest, DequeueRecurrentTaskRequest,
-    DequeueRecurrentTaskResponse, GetBalanceOfRequest, GetBalanceOfResponse,
-    GetControllersResponse, GetInfoResponse, GetRecurrentMintTasksResponse,
-    GetRecurrentTransferTasksRequest, GetRecurrentTransferTasksResponse, GetTotalSupplyResponse,
-    RecurrentMintTask, RecurrentTransferTask, TransferRequest, UpdateControllersRequest,
-    UpdateControllersResponse, UpdateInfoRequest, UpdateInfoResponse,
+    BurnRequest, ControllerList, DequeueRecurrentTaskRequest, DequeueRecurrentTaskResponse,
+    GetBalanceOfRequest, GetBalanceOfResponse, GetControllersResponse, GetInfoResponse,
+    GetRecurrentMintTasksResponse, GetRecurrentTransferTasksRequest,
+    GetRecurrentTransferTasksResponse, GetTotalSupplyResponse, InitRequest, RecurrentMintRequest,
+    RecurrentMintTask, RecurrentTransferRequest, RecurrentTransferTask, TransferRequest,
+    UpdateControllersRequest, UpdateControllersResponse, UpdateInfoRequest, UpdateInfoResponse,
 };
 
 use crate::common::currency_token::CurrencyToken;
@@ -31,10 +30,17 @@ mod common;
 // ----------------- MAIN LOGIC ------------------
 
 #[init]
-fn init(request: CurrencyTokenInitRequest) {
+fn init(request: InitRequest) {
     log("currency_token.init()");
 
-    let controllers = ControllerList::single(Some(caller()));
+    let controllers = if let Some(default_controllers) = request.default_controllers {
+        ControllerList {
+            mint_controllers: default_controllers.clone(),
+            info_controllers: default_controllers,
+        }
+    } else {
+        ControllerList::single(Some(caller()))
+    };
 
     let token = CurrencyToken {
         balances: HashMap::new(),
@@ -65,7 +71,7 @@ fn mint(request: TransferRequest) {
                             canister_id: id(),
                             method_name: String::from("_recurrent_mint"),
                         },
-                        (CurrencyTokenRecurrentMintRequest {
+                        (RecurrentMintRequest {
                             to: entry.to,
                             qty: entry.qty,
                             event_payload: entry.event_payload.clone(),
@@ -112,7 +118,7 @@ fn transfer(request: TransferRequest) {
                             canister_id: id(),
                             method_name: String::from("_recurrent_transfer"),
                         },
-                        (CurrencyTokenRecurrentTransferRequest {
+                        (RecurrentTransferRequest {
                             from: caller,
                             to: entry.to,
                             qty: entry.qty,
@@ -125,11 +131,14 @@ fn transfer(request: TransferRequest) {
                     match enqueue_result {
                         Ok(task_id) => {
                             token.register_recurrent_transfer_task(caller, task_id);
+                            log("Successfully registered transfer task");
                         }
                         Err(_) => {
                             log("Candid serialization error met during recurrent transfer enqueue");
                         }
                     };
+                } else {
+                    log("Recurrence is not provided");
                 }
 
                 emit(TokenMoveEvent {
@@ -284,10 +293,9 @@ fn get_recurrent_transfer_tasks(
         .into_iter()
         .map(|id| {
             let task = cron.scheduler.get_task_by_id(&id).unwrap();
-            let (task_payload,) = decode_args::<(CurrencyTokenRecurrentTransferRequest,)>(
-                task.payload.args_raw.as_slice(),
-            )
-            .unwrap();
+            let (task_payload,) =
+                decode_args::<(RecurrentTransferRequest,)>(task.payload.args_raw.as_slice())
+                    .unwrap();
 
             RecurrentTransferTask {
                 task_id: task.id,
@@ -306,7 +314,7 @@ fn get_recurrent_transfer_tasks(
 }
 
 #[update(guard = "self_guard")]
-fn _recurrent_transfer(request: CurrencyTokenRecurrentTransferRequest) {
+fn _recurrent_transfer(request: RecurrentTransferRequest) {
     log("currency_token._recurrent_transfer()");
 
     match get_token().transfer(request.from, request.to, request.qty) {
@@ -355,10 +363,8 @@ fn get_recurrent_mint_tasks() -> GetRecurrentMintTasksResponse {
         .into_iter()
         .map(|id| {
             let task = cron.scheduler.get_task_by_id(&id).unwrap();
-            let (task_payload,) = decode_args::<(CurrencyTokenRecurrentMintRequest,)>(
-                task.payload.args_raw.as_slice(),
-            )
-            .unwrap();
+            let (task_payload,) =
+                decode_args::<(RecurrentMintRequest,)>(task.payload.args_raw.as_slice()).unwrap();
 
             RecurrentMintTask {
                 task_id: task.id,
@@ -376,7 +382,7 @@ fn get_recurrent_mint_tasks() -> GetRecurrentMintTasksResponse {
 }
 
 #[update(guard = "self_guard")]
-fn _recurrent_mint(request: CurrencyTokenRecurrentMintRequest) {
+fn _recurrent_mint(request: RecurrentMintRequest) {
     log("currency_token._recurrent_mint()");
 
     match get_token().mint(request.to, request.qty) {

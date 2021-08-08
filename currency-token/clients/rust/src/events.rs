@@ -1,7 +1,7 @@
 use ic_cdk::export::candid::{CandidType, Deserialize, Principal};
 use ic_event_hub_macros::Event;
 
-use crate::types::{Controllers, CurrencyTokenInfo, Payload};
+use crate::types::{Controllers, Payload, TokenInfo};
 
 #[derive(Event, CandidType, Deserialize)]
 pub struct TokenMoveEvent {
@@ -29,5 +29,5 @@ pub struct ControllersUpdateEvent {
 
 #[derive(Event, CandidType, Deserialize)]
 pub struct InfoUpdateEvent {
-    pub new_info: CurrencyTokenInfo,
+    pub new_info: TokenInfo,
 }

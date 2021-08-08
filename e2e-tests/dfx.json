@@ -1,0 +1,29 @@
+{
+  "canisters": {
+    "membership-token": {
+      "build": "./buildscripts/membership-token.sh",
+      "candid": "../membership-token/canister/can.did",
+      "wasm": "../membership-token/canister/target/wasm32-unknown-unknown/release/membership-token-opt.wasm",
+      "type": "custom"
+    },
+    "currency-token": {
+      "build": "./buildscripts/currency-token.sh",
+      "candid": "../currency-token/canister/can.did",
+      "wasm": "../currency-token/canister/target/wasm32-unknown-unknown/release/currency-token-opt.wasm",
+      "type": "custom"
+    }
+  },
+  "defaults": {
+    "build": {
+      "packtool": ""
+    }
+  },
+  "dfx": "0.7.2",
+  "networks": {
+    "local": {
+      "bind": "127.0.0.1:8000",
+      "type": "ephemeral"
+    }
+  },
+  "version": 1
+}

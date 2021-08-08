@@ -4,15 +4,13 @@ use std::collections::{HashMap, HashSet};
 use ic_cdk::export::candid::{CandidType, Deserialize, Principal};
 use ic_cron::types::TaskId;
 
-use antifragile_currency_token_client::types::{
-    ControllerList, Controllers, CurrencyTokenInfo, Error,
-};
+use antifragile_currency_token_client::types::{ControllerList, Controllers, Error, TokenInfo};
 
 #[derive(CandidType, Deserialize)]
 pub struct CurrencyToken {
     pub balances: HashMap<Principal, u64>,
     pub total_supply: u64,
-    pub info: CurrencyTokenInfo,
+    pub info: TokenInfo,
     pub controllers: ControllerList,
     pub recurrent_mint_tasks: HashSet<TaskId>,
     pub recurrent_transfer_tasks: HashMap<Principal, HashSet<TaskId>>,
@@ -83,7 +81,7 @@ impl CurrencyToken {
         Ok(())
     }
 
-    pub fn update_info(&mut self, new_info: CurrencyTokenInfo) -> CurrencyTokenInfo {
+    pub fn update_info(&mut self, new_info: TokenInfo) -> TokenInfo {
         let old_info = self.info.clone();
         self.info = new_info;
 
@@ -159,7 +157,7 @@ mod tests {
     use ic_cdk::export::candid::Principal;
     use union_utils::random_principal_test;
 
-    use antifragile_currency_token_client::types::{ControllerList, CurrencyTokenInfo};
+    use antifragile_currency_token_client::types::{ControllerList, TokenInfo};
 
     use crate::common::currency_token::CurrencyToken;
 
@@ -172,7 +170,7 @@ mod tests {
         let token = CurrencyToken {
             balances: HashMap::new(),
             total_supply: 0,
-            info: CurrencyTokenInfo {
+            info: TokenInfo {
                 name: String::from("test"),
                 symbol: String::from("TST"),
                 decimals: 8,
@@ -276,7 +274,7 @@ mod tests {
     fn info_update_works_well() {
         let (mut token, controller) = create_currency_token();
 
-        let new_info_1 = CurrencyTokenInfo {
+        let new_info_1 = TokenInfo {
             name: String::from("name 1"),
             symbol: String::from("NME1"),
             decimals: 9,
@@ -287,7 +285,7 @@ mod tests {
         assert_eq!(token.info.symbol, String::from("NME1"));
         assert_eq!(token.info.decimals, 9);
 
-        let new_info_2 = CurrencyTokenInfo {
+        let new_info_2 = TokenInfo {
             name: String::from("name 2"),
             symbol: String::from("NME2"),
             decimals: 2,

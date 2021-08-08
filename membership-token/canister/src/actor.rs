@@ -11,7 +11,7 @@ use antifragile_membership_token_client::events::{
     ControllerType, ControllersUpdateEvent, MembershipStatus, MembershipStatusUpdateEvent,
 };
 use antifragile_membership_token_client::types::{
-    ControllerList, GetControllersResponse, GetTotalMembersResponse, IsMemberRequest,
+    ControllerList, GetControllersResponse, GetTotalMembersResponse, InitRequest, IsMemberRequest,
     IsMemberResponse, IssueRevokeMembershipsRequest, UpdateControllerRequest,
     UpdateControllerResponse,
 };
@@ -24,10 +24,19 @@ mod common;
 // -------------------- MAIN LOGIC ------------------------
 
 #[init]
-fn init() {
+fn init(request: InitRequest) {
     log("membership_token.init()");
 
-    let controllers = ControllerList::single(Some(caller()));
+    let controllers = if let Some(default_controllers) = request.default_controllers {
+        ControllerList {
+            issue_controllers: default_controllers.clone(),
+            revoke_controllers: default_controllers.clone(),
+            event_listeners_controllers: default_controllers,
+        }
+    } else {
+        ControllerList::single(Some(caller()))
+    };
+
     let token = MembershipToken::new(controllers);
 
     unsafe {

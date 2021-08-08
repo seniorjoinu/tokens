@@ -27,7 +27,7 @@ impl ControllerList {
 }
 
 #[derive(CandidType, Deserialize)]
-pub struct CurrencyTokenTransferEntry {
+pub struct TransferEntry {
     pub to: Principal,
     pub qty: u64,
     pub event_payload: Payload,
@@ -83,7 +83,7 @@ pub struct GetRecurrentMintTasksResponse {
 }
 
 #[derive(CandidType, Deserialize)]
-pub struct CurrencyTokenRecurrentTransferRequest {
+pub struct RecurrentTransferRequest {
     pub from: Principal,
     pub to: Principal,
     pub qty: u64,
@@ -91,14 +91,14 @@ pub struct CurrencyTokenRecurrentTransferRequest {
 }
 
 #[derive(CandidType, Deserialize)]
-pub struct CurrencyTokenRecurrentMintRequest {
+pub struct RecurrentMintRequest {
     pub to: Principal,
     pub qty: u64,
     pub event_payload: Payload,
 }
 
 #[derive(Clone, CandidType, Deserialize)]
-pub struct CurrencyTokenInfo {
+pub struct TokenInfo {
     pub name: String,
     pub symbol: String,
     pub decimals: u8,
@@ -125,8 +125,9 @@ impl Display for Error {
 }
 
 #[derive(CandidType, Deserialize)]
-pub struct CurrencyTokenInitRequest {
-    pub info: CurrencyTokenInfo,
+pub struct InitRequest {
+    pub info: TokenInfo,
+    pub default_controllers: Option<Controllers>,
 }
 
 #[derive(CandidType, Deserialize)]
@@ -146,17 +147,17 @@ pub struct GetTotalSupplyResponse {
 
 #[derive(CandidType, Deserialize)]
 pub struct GetInfoResponse {
-    pub info: CurrencyTokenInfo,
+    pub info: TokenInfo,
 }
 
 #[derive(CandidType, Deserialize)]
 pub struct UpdateInfoRequest {
-    pub new_info: CurrencyTokenInfo,
+    pub new_info: TokenInfo,
 }
 
 #[derive(CandidType, Deserialize)]
 pub struct UpdateInfoResponse {
-    pub old_info: CurrencyTokenInfo,
+    pub old_info: TokenInfo,
 }
 
 #[derive(CandidType, Deserialize)]
@@ -176,7 +177,7 @@ pub struct UpdateControllersResponse {
 
 #[derive(CandidType, Deserialize)]
 pub struct TransferRequest {
-    pub entries: Vec<CurrencyTokenTransferEntry>,
+    pub entries: Vec<TransferEntry>,
 }
 
 #[derive(CandidType, Deserialize)]

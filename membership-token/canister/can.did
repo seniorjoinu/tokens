@@ -31,7 +31,11 @@ type UpdateControllerResponse = record {
     old_controllers : Controllers;
 };
 
-service : {
+type InitRequest = record {
+    default_controllers : opt Controllers;
+};
+
+service : (InitRequest) -> {
     "issue_memberships" : (IssueRevokeMembershipsRequest) -> ();
     "revoke_memberships" : (IssueRevokeMembershipsRequest) -> ();
     "accept_membership" : () -> ();

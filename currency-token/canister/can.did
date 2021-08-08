@@ -17,7 +17,7 @@ type SchedulingInterval = record {
     iterations : Iterations;
 };
 
-type CurrencyTokenTransferEntry = record {
+type TransferEntry = record {
     to : principal;
     qty : nat64;
     event_payload : Payload;
@@ -65,14 +65,15 @@ type GetRecurrentMintTasksResponse = record {
     tasks : vec RecurrentMintTask;
 };
 
-type CurrencyTokenInfo = record {
+type TokenInfo = record {
     name : text;
     symbol : text;
     decimals : nat8;
 };
 
-type CurrencyTokenInitRequest = record {
-    info : CurrencyTokenInfo;
+type InitRequest = record {
+    info : TokenInfo;
+    default_controllers : opt Controllers;
 };
 
 type GetBalanceOfRequest = record {
@@ -87,14 +88,14 @@ type GetTotalSupplyResponse = record {
 };
 
 type GetInfoResponse = record {
-    info : CurrencyTokenInfo;
+    info : TokenInfo;
 };
 
 type UpdateInfoRequest = record {
-    new_info : CurrencyTokenInfo;
+    new_info : TokenInfo;
 };
 type UpdateInfoResponse = record {
-    old_info : CurrencyTokenInfo;
+    old_info : TokenInfo;
 };
 
 type GetControllersResponse = record {
@@ -109,7 +110,7 @@ type UpdateControllersResponse = record {
 };
 
 type TransferRequest = record {
-    entries : vec CurrencyTokenTransferEntry;
+    entries : vec TransferEntry;
 };
 
 type BurnRequest = record {
@@ -117,7 +118,7 @@ type BurnRequest = record {
     event_payload : Payload;
 };
 
-service : (CurrencyTokenInitRequest) -> {
+service : (InitRequest) -> {
     "mint" : (TransferRequest) -> ();
     "transfer" : (TransferRequest) -> ();
     "burn" : (BurnRequest) -> ();

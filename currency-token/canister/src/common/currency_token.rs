@@ -4,7 +4,9 @@ use std::collections::{HashMap, HashSet};
 use ic_cdk::export::candid::{CandidType, Deserialize, Principal};
 use ic_cron::types::TaskId;
 
-use antifragile_currency_token_client::types::{ControllerList, Controllers, Error, TokenInfo};
+use antifragile_currency_token_client::types::{ControllerList, Controllers, TokenInfo};
+
+use crate::common::types::Error;
 
 #[derive(CandidType, Deserialize)]
 pub struct CurrencyToken {

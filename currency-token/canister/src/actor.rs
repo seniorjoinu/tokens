@@ -1,9 +1,11 @@
 use std::collections::{HashMap, HashSet};
+use std::convert::TryInto;
 
 use ic_cdk::export::candid::{decode_args, export_service};
 use ic_cdk::{caller, id, trap};
 use ic_cdk_macros::{init, query, update};
 use ic_cron::implement_cron;
+use ic_cron::types::ScheduledTask;
 use ic_event_hub_macros::{
     implement_become_event_listener, implement_event_emitter, implement_get_event_listeners,
     implement_stop_being_event_listener,
@@ -17,13 +19,14 @@ use antifragile_currency_token_client::types::{
     BurnRequest, ControllerList, DequeueRecurrentTaskRequest, DequeueRecurrentTaskResponse,
     GetBalanceOfRequest, GetBalanceOfResponse, GetControllersResponse, GetInfoResponse,
     GetRecurrentMintTasksResponse, GetRecurrentTransferTasksRequest,
-    GetRecurrentTransferTasksResponse, GetTotalSupplyResponse, InitRequest, RecurrentMintRequest,
-    RecurrentMintTask, RecurrentTransferRequest, RecurrentTransferTask, TransferRequest,
-    UpdateControllersRequest, UpdateControllersResponse, UpdateInfoRequest, UpdateInfoResponse,
+    GetRecurrentTransferTasksResponse, GetTotalSupplyResponse, InitRequest, RecurrentMintTaskExt,
+    RecurrentTransferTaskExt, TransferRequest, UpdateControllersRequest, UpdateControllersResponse,
+    UpdateInfoRequest, UpdateInfoResponse,
 };
 
 use crate::common::currency_token::CurrencyToken;
 use crate::common::guards::{info_guard, mint_guard, self_guard};
+use crate::common::types::{CronTaskKind, RecurrentMintTask, RecurrentTransferTask};
 
 mod common;
 
@@ -67,16 +70,12 @@ fn mint(request: TransferRequest) {
             Ok(_) => {
                 if let Some(recurrence) = entry.recurrence {
                     let enqueue_result = cron_enqueue(
-                        RemoteCallEndpoint {
-                            canister_id: id(),
-                            method_name: String::from("_recurrent_mint"),
-                        },
-                        (RecurrentMintRequest {
+                        CronTaskKind::RecurrentMint as u8,
+                        RecurrentMintTask {
                             to: entry.to,
                             qty: entry.qty,
                             event_payload: entry.event_payload.clone(),
-                        },),
-                        0,
+                        },
                         recurrence,
                     );
 
@@ -114,17 +113,13 @@ fn transfer(request: TransferRequest) {
             Ok(_) => {
                 if let Some(recurrence) = entry.recurrence {
                     let enqueue_result = cron_enqueue(
-                        RemoteCallEndpoint {
-                            canister_id: id(),
-                            method_name: String::from("_recurrent_transfer"),
-                        },
-                        (RecurrentTransferRequest {
+                        CronTaskKind::RecurrentTransfer as u8,
+                        RecurrentTransferTask {
                             from: caller,
                             to: entry.to,
                             qty: entry.qty,
                             event_payload: entry.event_payload.clone(),
-                        },),
-                        0,
+                        },
                         recurrence,
                     );
 
@@ -257,6 +252,46 @@ fn update_mint_controller(request: UpdateControllersRequest) -> UpdateController
 
 implement_cron!();
 
+fn _cron_task_handler(task: ScheduledTask) {
+    match task.get_kind().try_into() {
+        Ok(CronTaskKind::RecurrentTransfer) => _recurrent_transfer(task.get_payload().unwrap()),
+        Ok(CronTaskKind::RecurrentMint) => _recurrent_mint(task.get_payload().unwrap()),
+        Err(_) => log("Invalid cron task handler"),
+    }
+}
+
+fn _recurrent_transfer(task: RecurrentTransferTask) {
+    log("currency_token._recurrent_transfer()");
+
+    match get_token().transfer(task.from, task.to, task.qty) {
+        Ok(_) => {
+            emit(TokenMoveEvent {
+                from: Some(task.from),
+                to: Some(task.to),
+                qty: task.qty,
+                event_payload: task.event_payload,
+            });
+        }
+        Err(e) => log(format!("Recurrent transferring failed with error: {}", e).as_str()),
+    };
+}
+
+fn _recurrent_mint(task: RecurrentMintTask) {
+    log("currency_token._recurrent_mint()");
+
+    match get_token().mint(task.to, task.qty) {
+        Ok(_) => {
+            emit(TokenMoveEvent {
+                from: None,
+                to: Some(task.to),
+                qty: task.qty,
+                event_payload: task.event_payload,
+            });
+        }
+        Err(e) => log(format!("Recurrent minting failed with error: {}", e).as_str()),
+    };
+}
+
 #[update]
 fn dequeue_recurrent_transfer_tasks(
     request: DequeueRecurrentTaskRequest,
@@ -293,11 +328,9 @@ fn get_recurrent_transfer_tasks(
         .into_iter()
         .map(|id| {
             let task = cron.scheduler.get_task_by_id(&id).unwrap();
-            let (task_payload,) =
-                decode_args::<(RecurrentTransferRequest,)>(task.payload.args_raw.as_slice())
-                    .unwrap();
+            let task_payload = task.get_payload::<RecurrentTransferTask>().unwrap();
 
-            RecurrentTransferTask {
+            RecurrentTransferTaskExt {
                 task_id: task.id,
                 from: task_payload.from,
                 to: task_payload.to,
@@ -311,23 +344,6 @@ fn get_recurrent_transfer_tasks(
         .collect();
 
     GetRecurrentTransferTasksResponse { tasks }
-}
-
-#[update(guard = "self_guard")]
-fn _recurrent_transfer(request: RecurrentTransferRequest) {
-    log("currency_token._recurrent_transfer()");
-
-    match get_token().transfer(request.from, request.to, request.qty) {
-        Ok(_) => {
-            emit(TokenMoveEvent {
-                from: Some(request.from),
-                to: Some(request.to),
-                qty: request.qty,
-                event_payload: request.event_payload,
-            });
-        }
-        Err(e) => log(format!("Recurrent transferring failed with error: {}", e).as_str()),
-    };
 }
 
 #[update(guard = "mint_guard")]
@@ -363,10 +379,9 @@ fn get_recurrent_mint_tasks() -> GetRecurrentMintTasksResponse {
         .into_iter()
         .map(|id| {
             let task = cron.scheduler.get_task_by_id(&id).unwrap();
-            let (task_payload,) =
-                decode_args::<(RecurrentMintRequest,)>(task.payload.args_raw.as_slice()).unwrap();
+            let task_payload = task.get_payload::<RecurrentMintTask>().unwrap();
 
-            RecurrentMintTask {
+            RecurrentMintTaskExt {
                 task_id: task.id,
                 to: task_payload.to,
                 qty: task_payload.qty,
@@ -379,23 +394,6 @@ fn get_recurrent_mint_tasks() -> GetRecurrentMintTasksResponse {
         .collect();
 
     GetRecurrentMintTasksResponse { tasks }
-}
-
-#[update(guard = "self_guard")]
-fn _recurrent_mint(request: RecurrentMintRequest) {
-    log("currency_token._recurrent_mint()");
-
-    match get_token().mint(request.to, request.qty) {
-        Ok(_) => {
-            emit(TokenMoveEvent {
-                from: None,
-                to: Some(request.to),
-                qty: request.qty,
-                event_payload: request.event_payload,
-            });
-        }
-        Err(e) => log(format!("Recurrent minting failed with error: {}", e).as_str()),
-    };
 }
 
 // ------------------ EVENT HUB --------------------

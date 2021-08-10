@@ -1,6 +1,5 @@
 use ic_cdk::export::candid::{CandidType, Deserialize, Principal};
 use ic_cron::types::{SchedulingInterval, TaskId};
-use std::fmt::{Display, Formatter};
 
 pub type Controllers = Vec<Principal>;
 pub type Payload = Option<Vec<u8>>;
@@ -49,79 +48,11 @@ pub struct GetRecurrentTransferTasksRequest {
     pub owner: Principal,
 }
 
-#[derive(CandidType, Deserialize)]
-pub struct RecurrentTransferTask {
-    pub task_id: TaskId,
-    pub from: Principal,
-    pub to: Principal,
-    pub qty: u64,
-    pub event_payload: Payload,
-    pub scheduled_at: u64,
-    pub rescheduled_at: Option<u64>,
-    pub scheduling_interval: SchedulingInterval,
-}
-
-#[derive(CandidType, Deserialize)]
-pub struct RecurrentMintTask {
-    pub task_id: TaskId,
-    pub to: Principal,
-    pub qty: u64,
-    pub event_payload: Payload,
-    pub scheduled_at: u64,
-    pub rescheduled_at: Option<u64>,
-    pub scheduling_interval: SchedulingInterval,
-}
-
-#[derive(CandidType, Deserialize)]
-pub struct GetRecurrentTransferTasksResponse {
-    pub tasks: Vec<RecurrentTransferTask>,
-}
-
-#[derive(CandidType, Deserialize)]
-pub struct GetRecurrentMintTasksResponse {
-    pub tasks: Vec<RecurrentMintTask>,
-}
-
-#[derive(CandidType, Deserialize)]
-pub struct RecurrentTransferRequest {
-    pub from: Principal,
-    pub to: Principal,
-    pub qty: u64,
-    pub event_payload: Payload,
-}
-
-#[derive(CandidType, Deserialize)]
-pub struct RecurrentMintRequest {
-    pub to: Principal,
-    pub qty: u64,
-    pub event_payload: Payload,
-}
-
 #[derive(Clone, CandidType, Deserialize)]
 pub struct TokenInfo {
     pub name: String,
     pub symbol: String,
     pub decimals: u8,
-}
-
-pub enum Error {
-    InsufficientBalance,
-    ZeroQuantity,
-    AccessDenied,
-    ForbiddenOperation,
-}
-
-impl Display for Error {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let str = match self {
-            Error::InsufficientBalance => "InsufficientBalance",
-            Error::ZeroQuantity => "ZeroQuantity",
-            Error::AccessDenied => "AccessDenied",
-            Error::ForbiddenOperation => "ForbiddenOperation",
-        };
-
-        f.write_str(str)
-    }
 }
 
 #[derive(CandidType, Deserialize)]
@@ -184,4 +115,37 @@ pub struct TransferRequest {
 pub struct BurnRequest {
     pub qty: u64,
     pub event_payload: Payload,
+}
+
+#[derive(CandidType, Deserialize)]
+pub struct RecurrentTransferTaskExt {
+    pub task_id: TaskId,
+    pub from: Principal,
+    pub to: Principal,
+    pub qty: u64,
+    pub event_payload: Payload,
+    pub scheduled_at: u64,
+    pub rescheduled_at: Option<u64>,
+    pub scheduling_interval: SchedulingInterval,
+}
+
+#[derive(CandidType, Deserialize)]
+pub struct RecurrentMintTaskExt {
+    pub task_id: TaskId,
+    pub to: Principal,
+    pub qty: u64,
+    pub event_payload: Payload,
+    pub scheduled_at: u64,
+    pub rescheduled_at: Option<u64>,
+    pub scheduling_interval: SchedulingInterval,
+}
+
+#[derive(CandidType, Deserialize)]
+pub struct GetRecurrentTransferTasksResponse {
+    pub tasks: Vec<RecurrentTransferTaskExt>,
+}
+
+#[derive(CandidType, Deserialize)]
+pub struct GetRecurrentMintTasksResponse {
+    pub tasks: Vec<RecurrentMintTaskExt>,
 }

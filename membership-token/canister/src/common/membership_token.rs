@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use ic_cdk::export::candid::{CandidType, Deserialize, Principal};
 
-use antifragile_membership_token_client::types::{ControllerList, Controllers, Error};
+use membership_token_client::types::{ControllerList, Controllers, Error};
 
 #[derive(CandidType, Deserialize)]
 pub struct MembershipToken {

@@ -12,7 +12,8 @@ path = "src/actor.rs"
 ic-cdk = "0.3.1"
 ic-cdk-macros = "0.3.1"
 serde = "1.0.126"
-ic-event-hub = "0.1.5"
-ic-event-hub-macros = "0.1.5"
-union-utils = "0.1.1"
-antifragile-membership-token-client = { path = "../clients/rust" }
+ic-event-hub = "0.1.10"
+ic-event-hub-macros = "0.1.10"
+union-utils = "0.1.3"
+futures = "0.3.16"
+membership-token-client = { path = "../clients/rust" }

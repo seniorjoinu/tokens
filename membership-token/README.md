@@ -1,4 +1,4 @@
-## Antifragile membership token
+## Membership token
 
 This token represents a simple set of principals which can be manipulated by any number of controllers.
 
@@ -9,8 +9,8 @@ your `dfx.json`.
 
 To integrate your canister with already deployed token canister:
 
-* add `antifragile-membership-token-client = "0.1.3"` (or higher version) to the `dependencies` of your `Cargo.toml`
-* use `antifragile_membership_token_client::api::MembershipTokenClient` inside your integrating canister
+* add `membership-token-client = "0.1.3"` (or higher version) to the `dependencies` of your `Cargo.toml`
+* use `membership_token_client::api::MembershipTokenClient` inside your integrating canister
 
 #### Local development
 

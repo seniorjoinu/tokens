@@ -3,7 +3,7 @@ import {Ed25519KeyIdentity} from "@dfinity/identity";
 import {assert} from 'chai';
 import {deleteMembershipToken, deployMembershipToken} from "./deploy";
 
-xdescribe('membership token', () => {
+describe('membership token', () => {
     const tokenControllerId = Ed25519KeyIdentity.generate();
     const tokenHolder1Id = Ed25519KeyIdentity.generate();
     const tokenHolder2Id = Ed25519KeyIdentity.generate();

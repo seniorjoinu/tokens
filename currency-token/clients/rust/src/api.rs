@@ -10,6 +10,7 @@ use crate::types::{
     UpdateInfoResponse,
 };
 
+/// Client struct for easier interaction from other rust canisters
 pub struct CurrencyTokenClient {
     pub canister_id: Principal,
 }

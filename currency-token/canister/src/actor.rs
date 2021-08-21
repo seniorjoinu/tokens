@@ -10,12 +10,12 @@ use ic_event_hub_macros::{
     implement_become_event_listener, implement_event_emitter, implement_get_event_listeners,
     implement_stop_being_event_listener,
 };
-use union_utils::{log, RemoteCallEndpoint};
+use union_utils::log;
 
-use antifragile_currency_token_client::events::{
+use currency_token_client::events::{
     ControllerType, ControllersUpdateEvent, InfoUpdateEvent, TokenMoveEvent,
 };
-use antifragile_currency_token_client::types::{
+use currency_token_client::types::{
     BurnRequest, ControllerList, DequeueRecurrentTaskRequest, DequeueRecurrentTaskResponse,
     GetBalanceOfRequest, GetBalanceOfResponse, GetControllersResponse, GetInfoResponse,
     GetRecurrentMintTasksResponse, GetRecurrentTransferTasksRequest,
@@ -327,7 +327,7 @@ fn get_recurrent_transfer_tasks(
         .get_recurrent_transfer_tasks(request.owner)
         .into_iter()
         .map(|id| {
-            let task = cron.scheduler.get_task_by_id(&id).unwrap();
+            let task = cron.get_task_by_id(&id).unwrap();
             let task_payload = task.get_payload::<RecurrentTransferTask>().unwrap();
 
             RecurrentTransferTaskExt {
@@ -378,7 +378,7 @@ fn get_recurrent_mint_tasks() -> GetRecurrentMintTasksResponse {
         .get_recurrent_mint_tasks()
         .into_iter()
         .map(|id| {
-            let task = cron.scheduler.get_task_by_id(&id).unwrap();
+            let task = cron.get_task_by_id(&id).unwrap();
             let task_payload = task.get_payload::<RecurrentMintTask>().unwrap();
 
             RecurrentMintTaskExt {

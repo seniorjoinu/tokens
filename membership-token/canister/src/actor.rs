@@ -7,10 +7,10 @@ use ic_event_hub_macros::{
 };
 use union_utils::log;
 
-use antifragile_membership_token_client::events::{
+use membership_token_client::events::{
     ControllerType, ControllersUpdateEvent, MembershipStatus, MembershipStatusUpdateEvent,
 };
-use antifragile_membership_token_client::types::{
+use membership_token_client::types::{
     ControllerList, GetControllersResponse, GetTotalMembersResponse, InitRequest, IsMemberRequest,
     IsMemberResponse, IssueRevokeMembershipsRequest, UpdateControllerRequest,
     UpdateControllerResponse,

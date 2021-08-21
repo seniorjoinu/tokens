@@ -4,7 +4,7 @@ use ic_cdk::export::candid::{CandidType, Deserialize};
 use ic_cdk::export::Principal;
 use ic_cron::u8_enum;
 
-use antifragile_currency_token_client::types::Payload;
+use currency_token_client::types::Payload;
 
 pub enum Error {
     InsufficientBalance,
